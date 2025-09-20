@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FixedSizeGrid as Grid } from 'react-window';
+import * as ReactWindow from 'react-window';
+// @ts-ignore  
+const { FixedSizeGrid: Grid } = ReactWindow;
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
