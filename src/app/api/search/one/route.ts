@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     if (!config.SiteConfig.DisableYellowFilter) {
       result = result.filter((item: SearchResult) => {
         const typeName = item.type_name || '';
-        const title = result.title || '';
+        const title = item.title || '';
         
         // 使用新的审核函数检查标题和分类名
         const titleModeration = moderateContent(title);
