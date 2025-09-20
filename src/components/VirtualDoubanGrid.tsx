@@ -1,5 +1,6 @@
 import React from 'react';
-import { FixedSizeGrid as Grid, GridCellProps } from 'react-window';
+import { FixedSizeGrid as Grid } from 'react-window/next';
+import type { GridCellProps } from 'react-window/next';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
