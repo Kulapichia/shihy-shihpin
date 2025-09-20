@@ -1,5 +1,5 @@
 import React from 'react';
-import { FixedSizeGrid as Grid } from 'react-window';
+import { FixedSizeGrid as Grid, GridCellProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
@@ -19,12 +19,7 @@ const Item = ({
   columnIndex,
   rowIndex,
   style,
-}: {
-  data: ItemData;
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-}) => {
+}: GridCellProps<ItemData>) => {
   const { columnCount, items, hasNextPage, columnWidth, type, primarySelection } = data;
   const index = rowIndex * columnCount + columnIndex;
 
