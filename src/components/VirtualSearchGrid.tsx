@@ -22,7 +22,6 @@ interface ItemData {
 }
 
 // 单个网格项的渲染组件
-// 使用 react-window 提供的 GridCellProps 类型，这是正确的做法
 const Item = ({
   data,
   columnIndex,
