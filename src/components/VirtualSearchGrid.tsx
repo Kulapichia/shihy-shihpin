@@ -28,7 +28,12 @@ const Item = ({
   columnIndex,
   rowIndex,
   style,
-}: GridCellProps<ItemData>) => {
+}: {
+  data: ItemData;
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+}) => {
   const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats, getGroupRef } = data;
   const index = rowIndex * columnCount + columnIndex;
 
