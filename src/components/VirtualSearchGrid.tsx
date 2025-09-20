@@ -22,6 +22,7 @@ interface ItemData {
 }
 
 // 单个网格项的渲染组件
+// 使用 react-window 提供的 GridChildComponentProps 类型，这是正确的做法
 const Item = ({
   data,
   columnIndex,
@@ -31,7 +32,8 @@ const Item = ({
   const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats, getGroupRef } = data;
   const index = rowIndex * columnCount + columnIndex;
 
-  const adjustedStyle = { ...style, padding: '0 8px' }; // 增加左右间距避免卡片贴边
+  // 为每个卡片增加一些内边距，避免它们紧贴在一起
+  const adjustedStyle = { ...style, padding: '0 8px' };
 
   // 聚合视图
   if (viewMode === 'agg') {
