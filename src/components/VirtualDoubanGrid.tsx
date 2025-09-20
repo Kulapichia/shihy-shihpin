@@ -1,5 +1,5 @@
 import React from 'react';
-import { FixedSizeGrid as Grid, GridOnItemsRenderedProps } from 'react-window';
+import { FixedSizeGrid as Grid, ListOnItemsRenderedProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
@@ -95,8 +95,11 @@ const VirtualDoubanGrid = ({
           width={containerWidth}
           itemData={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
           onItemsRendered={({
-            visibleRowStartIndex, visibleRowStopIndex, overscanRowStartIndex, overscanRowStopIndex,
-          }: any) => {
+            visibleRowStartIndex,
+            visibleRowStopIndex,
+            overscanRowStartIndex,
+            overscanRowStopIndex,
+          }: ListOnItemsRenderedProps) => {
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
