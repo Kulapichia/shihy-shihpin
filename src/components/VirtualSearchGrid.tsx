@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FixedSizeGrid as Grid, GridChildComponentProps } from 'react-window';
+import { FixedSizeGrid as Grid, GridCellProps } from 'react-window';
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
@@ -22,13 +22,13 @@ interface ItemData {
 }
 
 // 单个网格项的渲染组件
-// 使用 react-window 提供的 GridChildComponentProps 类型，这是正确的做法
+// 使用 react-window 提供的 GridCellProps 类型，这是正确的做法
 const Item = ({
   data,
   columnIndex,
   rowIndex,
   style,
-}: GridChildComponentProps<ItemData>) => {
+}: GridCellProps<ItemData>) => {
   const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats, getGroupRef } = data;
   const index = rowIndex * columnCount + columnIndex;
 
