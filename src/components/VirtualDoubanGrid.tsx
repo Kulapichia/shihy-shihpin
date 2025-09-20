@@ -1,10 +1,12 @@
 import React from 'react';
-import { FixedSizeGrid as Grid, ListOnItemsRenderedProps } from 'react-window';
+// 导入正确的类型 GridOnItemsRenderedProps
+import { FixedSizeGrid as Grid, GridOnItemsRenderedProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
+// ItemData 接口定义
 interface ItemData {
   columnCount: number;
   items: DoubanItem[];
@@ -14,6 +16,7 @@ interface ItemData {
   primarySelection: string;
 }
 
+// Item 组件
 const Item = ({
   data,
   columnIndex,
@@ -25,12 +28,15 @@ const Item = ({
   rowIndex: number;
   style: React.CSSProperties;
 }) => {
-  const { columnCount, items, hasNextPage, columnWidth, type, primarySelection } = data;
+  const { columnCount, items, hasNextPage, type, primarySelection } = data;
   const index = rowIndex * columnCount + columnIndex;
+
+  // 为每个卡片增加一些内边距，避免它们紧贴在一起
+  const adjustedStyle = { ...style, padding: '0 8px' };
 
   if (index >= items.length) {
     return hasNextPage ? (
-      <div style={style}>
+      <div style={adjustedStyle}>
         <DoubanCardSkeleton />
       </div>
     ) : null;
@@ -38,7 +44,7 @@ const Item = ({
 
   const item = items[index];
   return (
-    <div style={style}>
+    <div style={adjustedStyle}>
       <VideoCard
         from='douban'
         title={item.title}
@@ -53,6 +59,7 @@ const Item = ({
   );
 };
 
+// Props 接口定义
 interface VirtualDoubanGridProps {
   items: DoubanItem[];
   hasNextPage: boolean;
@@ -76,7 +83,7 @@ const VirtualDoubanGrid = ({
 }: VirtualDoubanGridProps) => {
   const itemCount = hasNextPage ? items.length + columnCount : items.length;
   const rowCount = Math.ceil(itemCount / columnCount);
-  const headerHeight = 220; // 估算的页面顶部选择器和标题的高度
+  const headerHeight = 220;
 
   return (
     <InfiniteLoader
@@ -91,7 +98,7 @@ const VirtualDoubanGrid = ({
           columnWidth={columnWidth}
           height={window.innerHeight - headerHeight}
           rowCount={rowCount}
-          rowHeight={columnWidth * 1.5 + 100} // 卡片宽高比约1.5，加上文字高度
+          rowHeight={columnWidth * 1.5 + 100}
           width={containerWidth}
           itemData={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
           onItemsRendered={({
@@ -99,7 +106,7 @@ const VirtualDoubanGrid = ({
             visibleRowStopIndex,
             overscanRowStartIndex,
             overscanRowStopIndex,
-          }: ListOnItemsRenderedProps) => {
+          }: GridOnItemsRenderedProps) => { // 使用正确的类型
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
@@ -117,5 +124,3 @@ const VirtualDoubanGrid = ({
 };
 
 export default VirtualDoubanGrid;
-
-
