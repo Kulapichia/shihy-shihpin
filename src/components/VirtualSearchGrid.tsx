@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FixedSizeGrid as Grid, GridCellProps } from 'react-window';
+import { FixedSizeGrid as Grid } from 'react-window/next';
+import type { GridCellProps } from 'react-window/next';
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
