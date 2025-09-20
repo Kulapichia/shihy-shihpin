@@ -1,5 +1,5 @@
-import React from 'react';
-import { FixedSizeGrid as Grid } from 'react-window';
+import React, { useState, useEffect } from 'react';
+import { FixedSizeGrid as Grid, GridChildComponentProps } from 'react-window';
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
@@ -27,21 +27,18 @@ const Item = ({
   columnIndex,
   rowIndex,
   style,
-}: {
-  data: ItemData;
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-}: any) => {
+}: GridChildComponentProps<ItemData>) => {
   const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats, getGroupRef } = data;
   const index = rowIndex * columnCount + columnIndex;
+
+  const adjustedStyle = { ...style, padding: '0 8px' }; // 增加左右间距避免卡片贴边
 
   // 聚合视图
   if (viewMode === 'agg') {
     if (index >= aggregatedResults.length) {
       // 如果还在加载中（流式搜索），显示骨架屏
       return hasNextPage ? (
-        <div style={style}>
+        <div style={adjustedStyle}>
           <DoubanCardSkeleton />
         </div>
       ) : null;
@@ -55,7 +52,7 @@ const Item = ({
     const type = episodes === 1 ? 'movie' : 'tv';
 
     return (
-      <div style={style}>
+      <div style={adjustedStyle}>
         <VideoCard
           ref={getGroupRef(mapKey)}
           from='search'
@@ -77,7 +74,7 @@ const Item = ({
   else {
     if (index >= results.length) {
       return hasNextPage ? (
-        <div style={style}>
+        <div style={adjustedStyle}>
           <DoubanCardSkeleton />
         </div>
       ) : null;
@@ -85,7 +82,7 @@ const Item = ({
 
     const item = results[index];
     return (
-      <div style={style}>
+      <div style={adjustedStyle}>
         <VideoCard
           id={item.id}
           title={item.title}
@@ -138,15 +135,35 @@ const VirtualSearchGrid = ({
   // 如果还在加载中（例如流式搜索未完成），则多渲染一行骨架屏作为占位
   const itemCount = hasNextPage ? dataSource.length + columnCount : dataSource.length;
   const rowCount = Math.ceil(itemCount / columnCount);
-  const headerHeight = 300; // 估算的搜索页顶部选择器等的高度
+  const headerHeight = 320; // 估算的搜索页顶部选择器等的高度
 
+  const [gridHeight, setGridHeight] = useState(0);
+
+  useEffect(() => {
+    const calculateHeight = () => {
+      // 确保计算的高度不会是负数
+      setGridHeight(Math.max(0, window.innerHeight - headerHeight));
+    };
+
+    calculateHeight(); // 初始计算
+
+    window.addEventListener('resize', calculateHeight);
+    return () => {
+      window.removeEventListener('resize', calculateHeight);
+    };
+  }, [headerHeight]);
+
+  if (gridHeight <= 0) {
+    return null; // 在计算出有效高度前，不渲染网格，防止闪烁或错误
+  }
+  
   // 搜索页加载所有数据后进行虚拟滚动，不需要无限加载器
   return (
     <Grid
       className="hide-scrollbar"
       columnCount={columnCount}
       columnWidth={columnWidth}
-      height={window.innerHeight - headerHeight}
+      height={gridHeight}
       rowCount={rowCount}
       rowHeight={columnWidth * 1.5 + 100}
       width={containerWidth}
