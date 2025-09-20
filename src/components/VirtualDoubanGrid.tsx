@@ -1,6 +1,8 @@
 import React from 'react';
 // 导入正确的类型 GridOnItemsRenderedProps
-import { FixedSizeGrid as Grid, GridOnItemsRenderedProps } from 'react-window';
+import * as ReactWindow from 'react-window';
+// @ts-ignore
+const { FixedSizeGrid: Grid } = ReactWindow;
 import InfiniteLoader from 'react-window-infinite-loader';
 import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
@@ -106,7 +108,7 @@ const VirtualDoubanGrid = ({
             visibleRowStopIndex,
             overscanRowStartIndex,
             overscanRowStopIndex,
-          }: GridOnItemsRenderedProps) => { // 使用正确的类型
+          }) => {
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
