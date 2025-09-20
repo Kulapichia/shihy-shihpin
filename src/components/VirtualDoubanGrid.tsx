@@ -108,6 +108,11 @@ const VirtualDoubanGrid = ({
             visibleRowStopIndex,
             overscanRowStartIndex,
             overscanRowStopIndex,
+          }: {
+            visibleRowStartIndex: number;
+            visibleRowStopIndex: number;
+            overscanRowStartIndex: number;
+            overscanRowStopIndex: number;
           }) => {
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
