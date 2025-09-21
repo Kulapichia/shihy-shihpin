@@ -176,7 +176,7 @@ const VirtualSearchGrid = ({
       itemData={{ 
         columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
       }}
-      children={Item}
+      cellComponent={Item}
     />
   );
 };
