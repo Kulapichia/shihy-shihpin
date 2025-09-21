@@ -23,12 +23,20 @@ interface ItemData {
 
 // 单个网格项的渲染组件
 const Item = ({
-  data,
+  columnCount,
+  items,
+  hasNextPage,
+  type,
+  primarySelection,
   columnIndex,
   rowIndex,
   style,
 }: {
-  data: ItemData;
+  columnCount: number;
+  items: DoubanItem[];
+  hasNextPage: boolean;
+  type: string;
+  primarySelection: string;
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
@@ -173,9 +181,16 @@ const VirtualSearchGrid = ({
       rowCount={rowCount}
       rowHeight={columnWidth * 1.5 + 100}
       width={containerWidth}
-      itemData={{ 
-        columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
+      cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
+      onCellsRendered={(visibleCells, allCells) => {
+        onItemsRendered({
+          overscanStartIndex: allCells.rowStartIndex * columnCount,
+          overscanStopIndex: allCells.rowStopIndex * columnCount,
+          visibleStartIndex: visibleCells.rowStartIndex * columnCount,
+          visibleStopIndex: visibleCells.rowStopIndex * columnCount,
+        });
       }}
+      ref={ref}
       cellComponent={Item}
     />
   );
