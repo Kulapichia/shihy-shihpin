@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     const searchData = await searchFromApi(targetSite, query);
-    let result = searchData.results.filter((r: SearchResult) => r.title === query);
+    let result = (searchData.results || []).filter((r: SearchResult) => r.title === query);
     if (!config.SiteConfig.DisableYellowFilter) {
       result = result.filter((item: SearchResult) => {
         const typeName = item.type_name || '';
