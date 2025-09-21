@@ -4,8 +4,21 @@ import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
-// ItemData 接口定义了传递给每个网格项的数据结构
-interface ItemData {
+// 单个网格项的渲染组件
+const Item = ({
+  columnCount,
+  results,
+  aggregatedResults,
+  hasNextPage,
+  columnWidth,
+  viewMode,
+  searchQuery,
+  computeGroupStats,
+  getGroupRef,
+  columnIndex,
+  rowIndex,
+  style,
+}: {
   columnCount: number;
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
