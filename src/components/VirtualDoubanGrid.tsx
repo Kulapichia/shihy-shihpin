@@ -16,11 +16,10 @@ interface CellProps {
 }
 
 // Item 组件完整的 Props 类型定义（包含库注入的属性）
-interface ItemProps {
+interface ItemProps extends CellProps {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
-  data: CellProps;
 }
 
 // Item 组件
@@ -28,10 +27,14 @@ const Item = ({
   columnIndex,
   rowIndex,
   style,
-  data
+  columnCount,
+  items,
+  hasNextPage,
+  type,
+  primarySelection,
 }: ItemProps) => {
-  const { columnCount, items, hasNextPage, type, primarySelection } = data;
   const index = rowIndex * columnCount + columnIndex;
+
 
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
@@ -103,9 +106,7 @@ const VirtualDoubanGrid = ({
           rowCount={rowCount}
           rowHeight={columnWidth * 1.5 + 100}
           width={containerWidth}
-          cellProps={{
-            data: { columnCount, items, hasNextPage, columnWidth, type, primarySelection }
-          } as any}
+          cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection } as any}
           onCellsRendered={(visibleCells, allCells) => {
             onItemsRendered({
               overscanStartIndex: allCells.rowStartIndex * columnCount,
