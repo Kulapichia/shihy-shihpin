@@ -5,8 +5,8 @@ import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
-// Item 组件
-type ItemProps = {
+// Item 组件的 Props 类型定义
+interface ItemProps {
   columnCount: number;
   items: DoubanItem[];
   hasNextPage: boolean;
@@ -16,8 +16,9 @@ type ItemProps = {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
-};
+}
 
+// Item 组件
 const Item = ({
   columnCount,
   items,
