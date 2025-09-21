@@ -120,7 +120,7 @@ const VirtualDoubanGrid = ({
               visibleStopIndex: visibleRowStopIndex * columnCount,
             });
           }}
-          ref={ref}
+          gridRef={ref}
           cellComponent={Item}
         />
       )}
