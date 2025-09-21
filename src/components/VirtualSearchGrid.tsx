@@ -4,8 +4,8 @@ import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
-// 单个网格项的渲染组件
-type ItemProps = {
+// Item 组件的 Props 类型定义
+interface SearchItemProps {
   columnCount: number;
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
@@ -22,8 +22,9 @@ type ItemProps = {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
-};
+}
 
+// 单个网格项的渲染组件
 const Item = ({
   columnCount,
   results,
@@ -37,7 +38,7 @@ const Item = ({
   columnIndex,
   rowIndex,
   style,
-}: ItemProps) => {
+}: SearchItemProps) => {
   const index = rowIndex * columnCount + columnIndex;
 
 
