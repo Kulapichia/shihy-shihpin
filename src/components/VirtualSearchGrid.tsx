@@ -44,8 +44,10 @@ const Item = ({
   } = data;
 
   const index = rowIndex * columnCount + columnIndex;
+  // 为每个卡片增加一些内边距，避免它们紧贴在一起
   const adjustedStyle = { ...style, padding: '0 8px' };
 
+  // 聚合视图
   if (viewMode === 'agg') {
     if (index >= aggregatedResults.length) {
       return hasNextPage ? <div style={adjustedStyle}><DoubanCardSkeleton /></div> : null;
@@ -58,6 +60,7 @@ const Item = ({
     const type = episodes === 1 ? 'movie' : 'tv';
 
     return (
+      // 应用 ariaAttributes 到根元素
       <div style={adjustedStyle} {...ariaAttributes}>
         <VideoCard
           ref={getGroupRef(mapKey)}
@@ -67,12 +70,14 @@ const Item = ({
         />
       </div>
     );
+  // 全部视图
   } else {
     if (index >= results.length) {
       return hasNextPage ? <div style={adjustedStyle}><DoubanCardSkeleton /></div> : null;
     }
     const item = results[index];
     return (
+      // 应用 ariaAttributes 到根元素
       <div style={adjustedStyle} {...ariaAttributes}>
         <VideoCard
           id={item.id} title={item.title} poster={item.poster}
@@ -119,16 +124,18 @@ const VirtualSearchGrid = ({
   getGroupRef,
 }: VirtualSearchGridProps) => {
   const dataSource = viewMode === 'agg' ? aggregatedResults : results;
+  // 如果还在加载中（例如流式搜索未完成），则多渲染一行骨架屏作为占位
   const itemCount = hasNextPage ? dataSource.length + columnCount : dataSource.length;
   const rowCount = Math.ceil(itemCount / columnCount);
-  const headerHeight = 320;
+  const headerHeight = 320; // 估算的搜索页顶部选择器等的高度
   const [gridHeight, setGridHeight] = useState(0);
 
   useEffect(() => {
     const calculateHeight = () => {
+      // 确保计算的高度不会是负数
       setGridHeight(Math.max(0, window.innerHeight - headerHeight));
     };
-    calculateHeight();
+    calculateHeight(); // 初始计算
     window.addEventListener('resize', calculateHeight);
     return () => {
       window.removeEventListener('resize', calculateHeight);
@@ -136,10 +143,12 @@ const VirtualSearchGrid = ({
   }, [headerHeight]);
 
   if (gridHeight <= 0) {
-    return null;
+    return null; // 在计算出有效高度前，不渲染网格，防止闪烁或错误
   }
 
+  // 搜索页加载所有数据后进行虚拟滚动，不需要无限加载器
   return (
+    // 为 Grid 提供泛型
     <Grid<SearchCellProps>
       className="hide-scrollbar"
       columnCount={columnCount}
@@ -147,6 +156,7 @@ const VirtualSearchGrid = ({
       rowCount={rowCount}
       rowHeight={columnWidth * 1.5 + 100}
       style={{ height: gridHeight, width: containerWidth }}
+      // 移除 as any，直接传递 props
       cellProps={{
         columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
       }}
