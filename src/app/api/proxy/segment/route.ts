@@ -139,80 +139,60 @@ export async function GET(request: Request) {
 
     // 使用流式传输，避免占用内存
     const stream = new ReadableStream({
-      start(controller) {
+      async start(controller) {
         if (!response?.body) {
           controller.close();
           return;
         }
-
         reader = response.body.getReader();
-        
 
-        // const isCancelled = false;
-
-        function pump() {
-          // 只检查 reader 是否存在
-          if (!reader) {
-            return;
-          }
-
-          reader
-            .read()
-            .then(({ done, value }) => {
-              // if (isCancelled)
-
-              if (done) {
-                controller.close();
-                cleanup();
-                return;
-              }
-
-              controller.enqueue(value);
-              pump();
-            })
-            .catch((error) => {
-              // if (!isCancelled)
-              controller.error(error);
-              cleanup();
-            });
-        }
-
-
-        function cleanup() {
+        const cleanup = () => {
           if (reader) {
             try {
               reader.releaseLock();
             } catch (e) {
-              // reader 可能已经被释放，忽略错误
+              // reader a.
             }
             reader = null;
           }
-        }
+        };
 
-        pump();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              break;
+            }
+            controller.enqueue(value);
+          }
+        } catch (error) {
+          controller.error(error);
+        } finally {
+          cleanup();
+          controller.close();
+        }
       },
       cancel() {
-        // 当流被取消时，确保释放所有资源
         if (reader) {
           try {
+            reader.cancel();
             reader.releaseLock();
           } catch (e) {
-            // reader 可能已经被释放，忽略错误
+            // ignore
           }
           reader = null;
         }
-
         if (response?.body) {
           try {
             response.body.cancel();
           } catch (e) {
-            // 忽略取消时的错误
+            // ignore
           }
         }
       },
     });
 
-    return new Response(stream, { headers });
+    return new Response(stream, { status: response.status, headers });
   } catch (error) {
     // 确保在错误情况下也释放资源
     if (reader) {
