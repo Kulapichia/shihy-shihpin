@@ -105,13 +105,6 @@ const VirtualDoubanGrid = ({
               visibleStopIndex: visibleCells.rowStopIndex * columnCount,
             });
           }}
-            onItemsRendered({
-              overscanStartIndex: overscanRowStartIndex * columnCount,
-              overscanStopIndex: overscanRowStopIndex * columnCount,
-              visibleStartIndex: visibleRowStartIndex * columnCount,
-              visibleStopIndex: visibleRowStopIndex * columnCount,
-            });
-          }}
           ref={ref}
           cellComponent={Item}
         />
