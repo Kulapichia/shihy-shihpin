@@ -105,7 +105,7 @@ const VirtualDoubanGrid = ({
           rowCount={rowCount}
           rowHeight={columnWidth * 1.5 + 100}
           width={containerWidth}
-          cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
+          cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection } as CellProps}
           onCellsRendered={(visibleCells, allCells) => {
             onItemsRendered({
               overscanStartIndex: allCells.rowStartIndex * columnCount,
