@@ -106,12 +106,18 @@ const VirtualDoubanGrid = ({
           rowHeight={columnWidth * 1.5 + 100}
           style={{ height: window.innerHeight - headerHeight, width: containerWidth }}
           cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection } as any}
-          onCellsRendered={(visibleCells, allCells) => {
+          onCellsRendered={({
+            rowStartIndex: visibleRowStartIndex,
+            rowStopIndex: visibleRowStopIndex
+          }, {
+            rowStartIndex: overscanRowStartIndex,
+            rowStopIndex: overscanRowStopIndex
+          }) => {
             onItemsRendered({
-              overscanStartIndex: allCells.rowStartIndex * columnCount,
-              overscanStopIndex: allCells.rowStopIndex * columnCount,
-              visibleStartIndex: visibleCells.rowStartIndex * columnCount,
-              visibleStopIndex: visibleCells.rowStopIndex * columnCount,
+              overscanStartIndex: overscanRowStartIndex * columnCount,
+              overscanStopIndex: overscanRowStopIndex * columnCount,
+              visibleStartIndex: visibleRowStartIndex * columnCount,
+              visibleStopIndex: visibleRowStopIndex * columnCount,
             });
           }}
           ref={ref}
