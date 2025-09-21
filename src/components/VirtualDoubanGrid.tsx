@@ -12,6 +12,7 @@ const Item = ({
   hasNextPage,
   type,
   primarySelection,
+  columnWidth,
   columnIndex,
   rowIndex,
   style,
@@ -21,6 +22,7 @@ const Item = ({
   hasNextPage: boolean;
   type: string;
   primarySelection: string;
+  columnWidth: number;
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
