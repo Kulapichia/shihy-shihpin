@@ -374,7 +374,7 @@ export async function GET(request: NextRequest) {
     const successResults = results
       .filter((result) => result.status === 'fulfilled')
       .map((result) => (result as PromiseFulfilledResult<any>).value);
-    let flattenedResults = successResults.flat();
+    let flattenedResults = successResults.flatMap(res => res.results || []);
 
     console.log('[Search API] Flattened results count:', flattenedResults.length);
     // 在此处添加修正逻辑
