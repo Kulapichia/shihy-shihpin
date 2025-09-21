@@ -4,8 +4,8 @@ import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
-// Item 组件的 Props 类型定义
-interface SearchItemProps {
+// cellProps 的类型定义（用户自定义属性）
+interface SearchCellProps {
   columnCount: number;
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
@@ -19,6 +19,10 @@ interface SearchItemProps {
     source_names: string[];
   };
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
+}
+
+// Item 组件完整的 Props 类型定义（包含库注入的属性）
+interface SearchItemProps extends SearchCellProps {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
