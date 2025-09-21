@@ -5,16 +5,6 @@ import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
-// ItemData 接口定义
-interface ItemData {
-  columnCount: number;
-  items: DoubanItem[];
-  hasNextPage: boolean;
-  columnWidth: number;
-  type: string;
-  primarySelection: string;
-}
-
 // Item 组件
 const Item = ({
   columnCount,
