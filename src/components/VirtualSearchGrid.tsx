@@ -5,20 +5,7 @@ import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
 // 单个网格项的渲染组件
-const Item = ({
-  columnCount,
-  results,
-  aggregatedResults,
-  hasNextPage,
-  columnWidth,
-  viewMode,
-  searchQuery,
-  computeGroupStats,
-  getGroupRef,
-  columnIndex,
-  rowIndex,
-  style,
-}: {
+type ItemProps = {
   columnCount: number;
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
@@ -35,8 +22,24 @@ const Item = ({
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
-}) => {
+};
+
+const Item = ({
+  columnCount,
+  results,
+  aggregatedResults,
+  hasNextPage,
+  columnWidth,
+  viewMode,
+  searchQuery,
+  computeGroupStats,
+  getGroupRef,
+  columnIndex,
+  rowIndex,
+  style,
+}: ItemProps) => {
   const index = rowIndex * columnCount + columnIndex;
+
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
   const adjustedStyle = { ...style, padding: '0 8px' };
