@@ -185,7 +185,7 @@ const VirtualSearchGrid = ({
       width={containerWidth}
       cellProps={{ 
         columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
-      }}
+      } as SearchCellProps}
       cellComponent={Item}
     />
   );
