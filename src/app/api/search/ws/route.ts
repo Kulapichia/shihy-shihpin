@@ -158,12 +158,12 @@ export async function GET(request: NextRequest) {
           // 添加超时控制
           const searchPromise = Promise.race([
             searchFromApi(site, query),
-            new Promise((_, reject) =>
+            new Promise<{ results: any[] }>((_, reject) =>
               setTimeout(() => reject(new Error(`${site.name} timeout after 20s`)), 20000)
             ),
           ]);
 
-          const results = (await searchPromise) as any[];
+          const { results } = await searchPromise;
           console.log(`[WS Search API] Raw results from ${site.name}:`, results.length, 'items');
 
           // International leading advanced search relevance scoring algorithm (consistent with standard API)
@@ -280,7 +280,7 @@ export async function GET(request: NextRequest) {
           };
 
           // Apply yellow content filter
-          let filteredResults = results;
+          let filteredResults = results || [];
           // 在此处添加修正逻辑
           filteredResults.forEach((item: any) => {
             if (item.poster && item.poster.startsWith('http://')) {
