@@ -1,6 +1,5 @@
 import React from 'react';
-// 导入正确的类型 GridOnCellsRenderedProps
-import { Grid, type GridOnCellsRenderedProps } from 'react-window';
+import { Grid } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
@@ -106,7 +105,7 @@ const VirtualDoubanGrid = ({
             visibleRowStopIndex,
             overscanRowStartIndex,
             overscanRowStopIndex,
-          }: GridOnCellsRenderedProps) => {
+          }) => {
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
@@ -115,7 +114,7 @@ const VirtualDoubanGrid = ({
             });
           }}
           ref={ref}
-          children={Item}
+          cellComponent={Item}
         />
       )}
     </InfiniteLoader>
