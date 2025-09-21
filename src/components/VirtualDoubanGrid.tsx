@@ -17,17 +17,24 @@ interface ItemData {
 
 // Item 组件
 const Item = ({
-  data,
+  columnCount,
+  items,
+  hasNextPage,
+  type,
+  primarySelection,
   columnIndex,
   rowIndex,
   style,
 }: {
-  data: ItemData;
+  columnCount: number;
+  items: DoubanItem[];
+  hasNextPage: boolean;
+  type: string;
+  primarySelection: string;
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
 }) => {
-  const { columnCount, items, hasNextPage, type, primarySelection } = data;
   const index = rowIndex * columnCount + columnIndex;
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
@@ -99,13 +106,15 @@ const VirtualDoubanGrid = ({
           rowCount={rowCount}
           rowHeight={columnWidth * 1.5 + 100}
           width={containerWidth}
-          itemData={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
-          onCellsRendered={({
-            visibleRowStartIndex,
-            visibleRowStopIndex,
-            overscanRowStartIndex,
-            overscanRowStopIndex,
-          }) => {
+          cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
+          onCellsRendered={(visibleCells, allCells) => {
+            onItemsRendered({
+              overscanStartIndex: allCells.rowStartIndex * columnCount,
+              overscanStopIndex: allCells.rowStopIndex * columnCount,
+              visibleStartIndex: visibleCells.rowStartIndex * columnCount,
+              visibleStopIndex: visibleCells.rowStopIndex * columnCount,
+            });
+          }}
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
