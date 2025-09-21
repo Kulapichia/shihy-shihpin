@@ -1,6 +1,7 @@
 name: Build & Push Docker image to Docker Hub
 
 on:
+  # 触发器一：手动触发
   workflow_dispatch:
     inputs:
       tag:
@@ -13,8 +14,13 @@ on:
         required: false
         default: false
         type: boolean
+
+  # 触发器二：推送到分支或标签
   push:
-    branches: [ main, master ]
+    branches: [ main, master ] # 对应 dev 标签的构建
+    tags: [ 'v*' ]            # 对应 latest 和版本标签的构建
+
+  # 触发器三：拉取请求
   pull_request:
     branches: [ main, master ]
 
@@ -61,44 +67,51 @@ jobs:
         run: node scripts/convert-changelog.js
 
       # Docker 环境
+      # ... (setup-qemu, setup-buildx, login-action steps are the same)
       - name: 🎯 Setup QEMU for multi-platform builds
         uses: docker/setup-qemu-action@v3
-
       - name: 🔧 Setup Docker Buildx for advanced features
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: |
             image=moby/buildkit:buildx-stable-1
             network=host
-
       - name: 🔐 Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Docker 元数据标签生成 (核心变更)
       - name: 🏷️ Extract intelligent Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            # 方式一：手动触发时，使用输入的 tag，如果为空则默认为 'latest'
+            # 规则一 (开发版): 当推送到默认分支 (main/master) 时，打上 'dev' 标签。
+            # 这用于 CI 检查，确保代码总是可构建和推送的。
+            type=raw,value=dev,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+            # 规则二 (稳定版): 当推送 "v" 开头的 Git 标签时，生成 'latest' 和版本号标签。
+            # 这是正式发布的唯一途径。
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+            # 规则三 (手动触发): 保持手动触发的灵活性。
             type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable=${{ github.event_name == 'workflow_dispatch' }}         
-            # 方式二：当推送到【默认分支】(无论是 main 还是 master)时，强制打上 'latest' 标签。
-            # 这是最关键的修正，它比之前的方法更可靠。
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-            # 方式三：为每一次构建都生成一个基于 commit SHA 的唯一标签
+            
+            # 规则四 (调试用): 为每次构建生成唯一的 SHA 标签。
             type=sha,prefix=sha-,format=short
 
-      # 核心构建 - 统一原子操作，增强缓存策略
+      # 核心构建与推送
       - name: 🚀 Build and push multi-platform image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
-          # 只在非 pull_request 事件时推送
+          # 仅在非 pull_request 事件时推送
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
