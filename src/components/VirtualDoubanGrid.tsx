@@ -102,10 +102,9 @@ const VirtualDoubanGrid = ({
           className="hide-scrollbar"
           columnCount={columnCount}
           columnWidth={columnWidth}
-          height={window.innerHeight - headerHeight}
           rowCount={rowCount}
           rowHeight={columnWidth * 1.5 + 100}
-          width={containerWidth}
+          style={{ height: window.innerHeight - headerHeight, width: containerWidth }}
           cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection } as any}
           onCellsRendered={(visibleCells, allCells) => {
             onItemsRendered({
