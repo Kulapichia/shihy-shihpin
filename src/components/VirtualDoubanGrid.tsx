@@ -5,14 +5,18 @@ import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
-// Item 组件的 Props 类型定义
-interface ItemProps {
+// cellProps 的类型定义（用户自定义属性）
+interface CellProps {
   columnCount: number;
   items: DoubanItem[];
   hasNextPage: boolean;
   type: string;
   primarySelection: string;
   columnWidth: number;
+}
+
+// Item 组件完整的 Props 类型定义（包含库注入的属性）
+interface ItemProps extends CellProps {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
