@@ -190,7 +190,7 @@ const VirtualSearchGrid = ({
         data: {
           columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
         }
-      }}
+      } as any}
       cellComponent={Item}
     />
   );
