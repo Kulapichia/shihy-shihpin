@@ -22,11 +22,10 @@ interface SearchCellProps {
 }
 
 // Item 组件完整的 Props 类型定义（包含库注入的属性）
-interface SearchItemProps {
+interface SearchItemProps extends SearchCellProps {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
-  data: SearchCellProps;
 }
 
 // 单个网格项的渲染组件
@@ -34,20 +33,17 @@ const Item = ({
   columnIndex,
   rowIndex,
   style,
-  data,
+  columnCount,
+  results,
+  aggregatedResults,
+  hasNextPage,
+  viewMode,
+  searchQuery,
+  computeGroupStats,
+  getGroupRef,
 }: SearchItemProps) => {
-  const {
-    columnCount,
-    results,
-    aggregatedResults,
-    hasNextPage,
-    columnWidth,
-    viewMode,
-    searchQuery,
-    computeGroupStats,
-    getGroupRef,
-  } = data;
   const index = rowIndex * columnCount + columnIndex;
+
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
   const adjustedStyle = { ...style, padding: '0 8px' };
@@ -187,9 +183,7 @@ const VirtualSearchGrid = ({
       rowHeight={columnWidth * 1.5 + 100}
       width={containerWidth}
       cellProps={{
-        data: {
-          columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
-        }
+        columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
       } as any}
       cellComponent={Item}
     />
