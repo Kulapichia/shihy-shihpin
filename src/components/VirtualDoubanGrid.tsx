@@ -6,6 +6,18 @@ import VideoCard from './VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
 // Item 组件
+type ItemProps = {
+  columnCount: number;
+  items: DoubanItem[];
+  hasNextPage: boolean;
+  type: string;
+  primarySelection: string;
+  columnWidth: number;
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+};
+
 const Item = ({
   columnCount,
   items,
@@ -16,17 +28,7 @@ const Item = ({
   columnIndex,
   rowIndex,
   style,
-}: {
-  columnCount: number;
-  items: DoubanItem[];
-  hasNextPage: boolean;
-  type: string;
-  primarySelection: string;
-  columnWidth: number;
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-}) => {
+}: ItemProps) => {
   const index = rowIndex * columnCount + columnIndex;
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
