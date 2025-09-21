@@ -26,23 +26,22 @@ type SearchItemProps = CellComponentProps<SearchCellProps>;
 
 // 单个网格项的渲染组件
 const Item = ({
+  // 库注入的 Props
   columnIndex,
   rowIndex,
   style,
-  data,
   ariaAttributes,
-}: SearchItemProps) => {
-  const {
-    columnCount,
-    results,
-    aggregatedResults,
-    hasNextPage,
-    viewMode,
-    searchQuery,
-    computeGroupStats,
-    getGroupRef,
-  } = data;
 
+  // 核心修正(1)：直接从顶级 props 解构，不再有 'data' 对象
+  columnCount,
+  results,
+  aggregatedResults,
+  hasNextPage,
+  viewMode,
+  searchQuery,
+  computeGroupStats,
+  getGroupRef,
+}: SearchItemProps) => {
   const index = rowIndex * columnCount + columnIndex;
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
   const adjustedStyle = { ...style, padding: '0 8px' };
@@ -60,7 +59,6 @@ const Item = ({
     const type = episodes === 1 ? 'movie' : 'tv';
 
     return (
-      // 应用 ariaAttributes 到根元素
       <div style={adjustedStyle} {...ariaAttributes}>
         <VideoCard
           ref={getGroupRef(mapKey)}
@@ -77,7 +75,6 @@ const Item = ({
     }
     const item = results[index];
     return (
-      // 应用 ariaAttributes 到根元素
       <div style={adjustedStyle} {...ariaAttributes}>
         <VideoCard
           id={item.id} title={item.title} poster={item.poster}
@@ -89,9 +86,6 @@ const Item = ({
     );
   }
 };
-
-// 使用 React.memo 并进行正确的类型断言
-const MemoizedItem = React.memo(Item) as typeof Item;
 
 // VirtualSearchGrid 组件的 Props 定义
 interface VirtualSearchGridProps {
@@ -148,7 +142,6 @@ const VirtualSearchGrid = ({
 
   // 搜索页加载所有数据后进行虚拟滚动，不需要无限加载器
   return (
-    // 为 Grid 提供泛型
     <Grid<SearchCellProps>
       className="hide-scrollbar"
       columnCount={columnCount}
@@ -156,12 +149,11 @@ const VirtualSearchGrid = ({
       rowCount={rowCount}
       rowHeight={columnWidth * 1.5 + 100}
       style={{ height: gridHeight, width: containerWidth }}
-      // 移除 as any，直接传递 props
       cellProps={{
         columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
       }}
-      // 使用经过 memo 和类型断言的组件
-      cellComponent={MemoizedItem}
+      // 核心修正(2): 直接传递原始 Item 组件，移除所有 React.memo
+      cellComponent={Item}
     />
   );
 };
