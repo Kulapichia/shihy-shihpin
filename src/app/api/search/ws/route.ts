@@ -163,7 +163,24 @@ export async function GET(request: NextRequest) {
             ),
           ]);
 
-          const { results } = await searchPromise;
+          const results = (await searchPromise) as any[];
+          // 增加一个判断，如果results不是一个数组，直接跳过处理
+          if (!Array.isArray(results)) {
+            console.warn(`[WS Search API] Invalid results from ${site.name}: expected array, got`, typeof results);
+            completedSources++;
+            // 可以在这里发送一个特定错误事件
+            if (!streamClosed) {
+              const errorEvent = `data: ${JSON.stringify({
+                type: 'source_error',
+                source: site.key,
+                sourceName: site.name,
+                error: '返回数据格式不正确',
+                timestamp: Date.now(),
+              })}\n\n`;
+              safeEnqueue(encoder.encode(errorEvent));
+            }
+            return;
+          }
           console.log(`[WS Search API] Raw results from ${site.name}:`, results.length, 'items');
 
           // International leading advanced search relevance scoring algorithm (consistent with standard API)
