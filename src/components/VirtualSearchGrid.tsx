@@ -178,10 +178,9 @@ const VirtualSearchGrid = ({
       className="hide-scrollbar"
       columnCount={columnCount}
       columnWidth={columnWidth}
-      height={gridHeight}
       rowCount={rowCount}
       rowHeight={columnWidth * 1.5 + 100}
-      width={containerWidth}
+      style={{ height: gridHeight, width: containerWidth }}
       cellProps={{
         columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
       } as any}
