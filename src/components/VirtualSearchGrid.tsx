@@ -22,7 +22,7 @@ const Item = ({
   columnCount: number;
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
-  hasNextPage: boolean; // 用于在流式加载时显示骨架屏
+  hasNextPage: boolean;
   columnWidth: number;
   viewMode: 'agg' | 'all';
   searchQuery: string;
@@ -32,29 +32,10 @@ const Item = ({
     source_names: string[];
   };
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
-}
-
-// 单个网格项的渲染组件
-const Item = ({
-  columnCount,
-  items,
-  hasNextPage,
-  type,
-  primarySelection,
-  columnIndex,
-  rowIndex,
-  style,
-}: {
-  columnCount: number;
-  items: DoubanItem[];
-  hasNextPage: boolean;
-  type: string;
-  primarySelection: string;
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
 }) => {
-  const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats, getGroupRef } = data;
   const index = rowIndex * columnCount + columnIndex;
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
@@ -194,16 +175,9 @@ const VirtualSearchGrid = ({
       rowCount={rowCount}
       rowHeight={columnWidth * 1.5 + 100}
       width={containerWidth}
-      cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
-      onCellsRendered={(visibleCells, allCells) => {
-        onItemsRendered({
-          overscanStartIndex: allCells.rowStartIndex * columnCount,
-          overscanStopIndex: allCells.rowStopIndex * columnCount,
-          visibleStartIndex: visibleCells.rowStartIndex * columnCount,
-          visibleStopIndex: visibleCells.rowStopIndex * columnCount,
-        });
+      cellProps={{ 
+        columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
       }}
-      ref={ref}
       cellComponent={Item}
     />
   );
