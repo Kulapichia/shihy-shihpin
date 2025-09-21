@@ -5,7 +5,7 @@ import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
-// cellProps 的类型定义（用户自定义属性）- 此部分保持不变
+// cellProps 的类型定义（用户自定义属性）
 interface CellProps {
   columnCount: number;
   items: DoubanItem[];
@@ -23,8 +23,8 @@ const Item = ({
   columnIndex,
   rowIndex,
   style,
-  data, // 所有自定义 props 现在都在 data 对象里
-  ariaAttributes, // react-window v2.1.0 新增，用于 ARIA
+  data, 
+  ariaAttributes,
 }: ItemProps) => {
   // 从 data 对象中解构出我们需要的属性
   const { columnCount, items, hasNextPage, type, primarySelection } = data;
@@ -43,7 +43,6 @@ const Item = ({
 
   const item = items[index];
   return (
-    // 应用 ariaAttributes 到根元素
     <div style={adjustedStyle} {...ariaAttributes}>
       <VideoCard
         from='douban'
@@ -58,6 +57,9 @@ const Item = ({
     </div>
   );
 };
+
+// 使用 React.memo 并进行正确的类型断言
+const MemoizedItem = React.memo(Item) as typeof Item;
 
 // Props 接口定义
 interface VirtualDoubanGridProps {
@@ -92,7 +94,6 @@ const VirtualDoubanGrid = ({
       loadMoreItems={loadNextPage}
     >
       {({ onItemsRendered, ref }) => (
-        // 为 Grid 提供泛型，并移除 as any
         <Grid<CellProps>
           className="hide-scrollbar"
           columnCount={columnCount}
@@ -100,9 +101,8 @@ const VirtualDoubanGrid = ({
           rowCount={rowCount}
           rowHeight={columnWidth * 1.5 + 100}
           style={{ height: window.innerHeight - headerHeight, width: containerWidth }}
-          // 直接传递对象，无需类型断言
           cellProps={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
-          onCellsRendered={(visibleInfo, allInfo) => { // 保持 v2.1.0 的回调签名
+          onCellsRendered={(visibleInfo, allInfo) => {
             onItemsRendered({
               overscanStartIndex: allInfo.rowStartIndex * columnCount,
               overscanStopIndex: allInfo.rowStopIndex * columnCount,
@@ -110,8 +110,9 @@ const VirtualDoubanGrid = ({
               visibleStopIndex: visibleInfo.rowStopIndex * columnCount,
             });
           }}
-          gridRef={ref} // v2 的 ref 属性
-          cellComponent={Item}
+          gridRef={ref}
+          // 使用经过 memo 和类型断言的组件
+          cellComponent={MemoizedItem}
         />
       )}
     </InfiniteLoader>
