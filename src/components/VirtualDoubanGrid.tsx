@@ -20,14 +20,19 @@ type ItemProps = CellComponentProps<CellProps>;
 
 // Item 组件
 const Item = ({
+  // 库注入的 Props
   columnIndex,
   rowIndex,
   style,
-  data, 
   ariaAttributes,
+
+  // 核心修正(1)：直接从顶级 props 解构，不再有 'data' 对象
+  columnCount,
+  items,
+  hasNextPage,
+  type,
+  primarySelection,
 }: ItemProps) => {
-  // 从 data 对象中解构出我们需要的属性
-  const { columnCount, items, hasNextPage, type, primarySelection } = data;
   const index = rowIndex * columnCount + columnIndex;
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
@@ -57,9 +62,6 @@ const Item = ({
     </div>
   );
 };
-
-// 使用 React.memo 并进行正确的类型断言
-const MemoizedItem = React.memo(Item) as typeof Item;
 
 // Props 接口定义
 interface VirtualDoubanGridProps {
@@ -111,8 +113,8 @@ const VirtualDoubanGrid = ({
             });
           }}
           gridRef={ref}
-          // 使用经过 memo 和类型断言的组件
-          cellComponent={MemoizedItem}
+          // 核心修正(2): 直接传递原始 Item 组件，移除所有 React.memo
+          cellComponent={Item}
         />
       )}
     </InfiniteLoader>
