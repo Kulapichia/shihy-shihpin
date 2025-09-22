@@ -65,6 +65,7 @@ function SearchPageClient() {
       { douban_id?: number; episodes?: number; source_names: string[] }
     >
   >(new Map());
+  const [isDeepSearching, setIsDeepSearching] = useState(false);
 
   const getGroupRef = (key: string) => {
     let ref = groupRefs.current.get(key);
@@ -858,6 +859,59 @@ function SearchPageClient() {
     // 其余由 searchParams 变化的 effect 处理
   };
 
+  const handleDeepSearch = async () => {
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery || isDeepSearching) return;
+
+    setIsDeepSearching(true);
+
+    try {
+      // 调用改造后的API，并带上 deep=true 参数
+      const response = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&deep=true`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '深度搜索请求失败');
+      }
+
+      const data = await response.json();
+      const newResults = data.results || [];
+
+      if (newResults.length > 0) {
+        // 使用 Map 进行高效去重合并，保留旧结果，追加新结果
+        const combinedResultsMap = new Map(
+          searchResults.map(r => [`${r.source}-${r.id}`, r])
+        );
+
+        let addedCount = 0;
+        newResults.forEach((result: SearchResult) => {
+          const key = `${result.source}-${result.id}`;
+          if (!combinedResultsMap.has(key)) {
+            combinedResultsMap.set(key, result);
+            addedCount++;
+          }
+        });
+
+        // 只有当有新结果时才更新状态
+        if (addedCount > 0) {
+          startTransition(() => {
+            setSearchResults(Array.from(combinedResultsMap.values()));
+          });
+        }
+
+        alert(`深度搜索完成！新增了 ${addedCount} 条结果。`);
+      } else {
+        alert('深度搜索完成，没有发现更多新结果。');
+      }
+
+    } catch (error) {
+      console.error("深度搜索失败:", error);
+      alert(error instanceof Error ? error.message : '深度搜索发生未知错误');
+    } finally {
+      setIsDeepSearching(false);
+    }
+  };
+
   // 返回顶部功能
   const scrollToTop = () => {
     try {
@@ -1097,6 +1151,29 @@ function SearchPageClient() {
                           />
                         </div>
                       ))}
+                </div>
+              )}
+
+              {/* 在结果列表下方添加深度搜索按钮 */}
+              {!isLoading && showResults && searchResults.length > 0 && (
+                <div className="mt-12 text-center">
+                  <button
+                    onClick={handleDeepSearch}
+                    disabled={isDeepSearching}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDeepSearching ? (
+                      <span className="flex items-center">
+                        <span className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                        正在搜索所有页面...
+                      </span>
+                    ) : (
+                      '搜索所有页面 (可能较慢)'
+                    )}
+                  </button>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    此操作将搜索所有数据源的全部可用分页，以查找更多结果。
+                  </p>
                 </div>
               )}
             </section>
