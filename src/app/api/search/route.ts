@@ -4,10 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getCacheTime, getConfig } from '@/lib/config';
-import { searchFromApi } from '@/lib/downstream';
+import { searchFromApi, searchFromAll } from '@/lib/downstream';
 import { moderateContent, decisionThresholds } from '@/lib/yellow';
 import { checkImageWithSightengine } from '@/lib/sightengine-client';
 import { checkImageWithBaidu } from '@/lib/baidu-client';
+import { SearchResult } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get('q');
   const pageStr = searchParams.get('page');
   const page = pageStr ? parseInt(pageStr, 10) : 1;
+  const deep = searchParams.get('deep') === 'true';
 
   console.log('[Search API] Query parameter:', query, 'Page:', page);
 
@@ -363,19 +365,32 @@ export async function GET(request: NextRequest) {
   console.log('[Search API] Starting search with sites:', apiSites.map(site => ({ key: site.key, name: site.name, status: site.lastCheck?.status })));
 
   try {
-    const results = await Promise.allSettled(searchPromises);
-    console.log('[Search API] Search promises completed:', results.map((r, i) => ({ 
-      site: apiSites[i]?.name, 
-      status: r.status, 
-      resultCount: r.status === 'fulfilled' ? (r.value as any[]).length : 0,
-      error: r.status === 'rejected' ? r.reason?.message : null
-    })));
+    let flattenedResults: any[] = [];
+    if (deep) {
+      console.log(`[Deep Search API] Starting deep search for query: "${query}"`);
+      const allDeepResults: SearchResult[] = [];
+      for await (const sourceResults of searchFromAll(query)) {
+        if (sourceResults && sourceResults.length > 0) {
+          allDeepResults.push(...sourceResults);
+        }
+      }
+      flattenedResults = allDeepResults;
+      console.log(`[Deep Search API] Found a total of ${flattenedResults.length} deep results.`);
+    } else {
+      const results = await Promise.allSettled(searchPromises);
+      console.log('[Search API] Search promises completed:', results.map((r, i) => ({ 
+        site: apiSites[i]?.name, 
+        status: r.status, 
+        resultCount: r.status === 'fulfilled' ? (r.value as any[]).length : 0,
+        error: r.status === 'rejected' ? r.reason?.message : null
+      })));
 
-    const successResults = results
-      .filter((result) => result.status === 'fulfilled')
-      .map((result) => (result as PromiseFulfilledResult<any>).value);
-    let flattenedResults = successResults.flatMap(res => res.results || []);
-
+      const successResults = results
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => (result as PromiseFulfilledResult<any>).value);
+      flattenedResults = successResults.flatMap(res => res.results || []);
+    }
+    
     console.log('[Search API] Flattened results count:', flattenedResults.length);
     // 在此处添加修正逻辑
     flattenedResults.forEach((item: any) => {
