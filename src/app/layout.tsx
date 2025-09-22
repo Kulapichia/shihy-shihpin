@@ -10,7 +10,7 @@ import { getConfig } from '@/lib/config';
 import { GlobalErrorIndicator } from '../components/GlobalErrorIndicator';
 import { SiteProvider } from '../components/SiteProvider';
 import { ThemeProvider } from '../components/ThemeProvider';
-
+import { VirtualScrollProvider } from '../components/VirtualScrollProvider';
 const inter = Inter({ subsets: ['latin'] });
 export const dynamic = 'force-dynamic';
 
@@ -103,7 +103,17 @@ export default async function RootLayout({
     CUSTOM_CATEGORIES: customCategories,
     FLUID_SEARCH: fluidSearch,
   };
+  let enableVirtualScroll = true; // 默认值
+  if (storageType !== 'localstorage') {
+    const config = await getConfig();
+    // ...
+    enableVirtualScroll = config.SiteConfig.EnableVirtualScroll ?? true; // 从配置读取
+  }
 
+  const runtimeConfig = {
+    // ...
+    ENABLE_VIRTUAL_SCROLL: enableVirtualScroll, // 注入到客户端
+  };
   return (
     <html lang='zh-CN' suppressHydrationWarning>
       <head>
@@ -130,7 +140,9 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <SiteProvider siteName={siteName} announcement={announcement}>
+            <VirtualScrollProvider initialValue={enableVirtualScroll}>
             {children}
+            </VirtualScrollProvider>
             <GlobalErrorIndicator />
           </SiteProvider>
         </ThemeProvider>
