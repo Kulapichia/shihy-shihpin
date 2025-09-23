@@ -117,7 +117,6 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   // 渲染单个网格项
   const CellComponent = useCallback(
     ({
-      ariaAttributes,
       columnIndex,
       rowIndex,
       style,
@@ -144,7 +143,7 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
       }
 
       return (
-        <div style={{ ...style, padding: '8px' }} {...ariaAttributes}>
+        <div style={{ ...style, padding: '8px' }}>
           <VideoCard
             from='douban'
             title={item.title}
@@ -193,7 +192,6 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           key={`grid-${containerWidth}-${columnCount}`}
           columnCount={columnCount}
           columnWidth={itemWidth + 16}
-          height={gridHeight}
           width={containerWidth}
           rowCount={rowCount}
           rowHeight={itemHeight + 16}
@@ -205,7 +203,6 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
             columnCount,
             displayItemCount,
           }}
-          cellComponent={CellComponent}
           overscanCount={1}
           // 添加ARIA支持
           role='grid'
@@ -213,6 +210,7 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           aria-rowcount={rowCount}
           aria-colcount={columnCount}
           style={{
+            height: gridHeight, // 修正：height 属性移入 style 对象
             overflowX: 'hidden',
             overflowY: 'auto',
             isolation: 'auto',
@@ -241,7 +239,9 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
               }
             }
           }}
-        />
+        >
+          {CellComponent}
+        </Grid>
       )}
 
       {/* 加载更多指示器 */}
