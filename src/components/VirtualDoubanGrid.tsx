@@ -3,6 +3,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+// 修正：从 react-window 导入官方的 CellComponentProps 类型
+import { type CellComponentProps as ReactWindowCellComponentProps } from 'react-window';
 
 const Grid = dynamic(
   () => import('react-window').then((mod) => ({ default: mod.Grid })),
@@ -47,14 +49,6 @@ interface CellProps {
   isBangumi?: boolean;
 }
 
-// Cell 组件完整的 Props 类型定义（包含库注入的属性）
-interface CellComponentProps extends CellProps {
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-  ariaAttributes?: any;
-}
-
 // 渐进式加载配置
 const INITIAL_BATCH_SIZE = 25;
 const LOAD_MORE_BATCH_SIZE = 25;
@@ -66,12 +60,13 @@ const CellComponent = ({
   rowIndex,
   style,
   ariaAttributes,
+  // 从 cellProps 传递过来的自定义属性
   columnCount: cellColumnCount,
   displayData: cellDisplayData,
   displayItemCount: cellDisplayItemCount,
   type: cellType,
   isBangumi: cellIsBangumi,
-}: CellComponentProps) => {
+}: ReactWindowCellComponentProps<CellProps>) => { // 修正：使用官方的泛型类型
   const index = rowIndex * cellColumnCount + columnIndex;
 
   if (index >= cellDisplayItemCount) {
@@ -229,7 +224,7 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
         </div>
       ) : (
         <Grid
-          key={`grid-${containerWidth}-${columnCount}`} // 恢复：强制在布局变化时重新渲染
+          key={`grid-${containerWidth}-${columnCount}`}
           cellComponent={CellComponent}
           cellProps={{
             columnCount,
@@ -256,7 +251,6 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           }}
           onCellsRendered={onCellsRendered}
           overscanCount={1}
-          // 恢复：添加ARIA支持
           role='grid'
           aria-label={`豆瓣${type}列表，共${displayItemCount}个结果`}
           aria-rowcount={rowCount}
