@@ -195,7 +195,9 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           width={containerWidth}
           rowCount={rowCount}
           rowHeight={itemHeight + 16}
-          itemData={{
+          // 2.1.1 新API：使用 cellComponent/cellProps
+          cellComponent={CellComponent}
+          cellProps={{
             displayData,
             type,
             primarySelection,
@@ -219,15 +221,21 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
               maxHeight: itemHeight + 32,
             }),
           }}
-          onCellsRendered={({
-            rowStopIndex: visibleRowStopIndex,
-          }: {
-            rowStartIndex: number;
-            rowStopIndex: number;
-            columnStartIndex: number;
-            columnStopIndex: number;
-          }) => {
-            if (visibleRowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
+          onCellsRendered={(
+            visibleCells: {
+              rowStopIndex: number;
+              rowStartIndex: number;
+              columnStartIndex: number;
+              columnStopIndex: number;
+            },
+            allCells: {
+              rowStopIndex: number;
+              rowStartIndex: number;
+              columnStartIndex: number;
+              columnStopIndex: number;
+            }
+          ) => {
+            if (visibleCells.rowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
               if (hasNextVirtualPage && !isVirtualLoadingMore) {
                 loadMoreVirtualItems();
               } else if (needsServerData) {
@@ -239,9 +247,7 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
               }
             }
           }}
-        >
-          {CellComponent}
-        </Grid>
+        />
       )}
 
       {/* 加载更多指示器 */}
