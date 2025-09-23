@@ -31,8 +31,16 @@ export async function POST(request: NextRequest) {
     const response = await fetch(url);
 
     if (!response.ok) {
+      const errorText = await response.text(); // 尝试读取错误响应体
+      // 检查是否是常见的 GitHub Raw 404 错误
+      if (response.status === 404 && url.includes('raw.githubusercontent.com')) {
+        return NextResponse.json(
+          { error: `请求失败 (404): 请检查订阅链接或仓库是否正确。` },
+          { status: 404 }
+        );
+      }
       return NextResponse.json(
-        { error: `请求失败: ${response.status} ${response.statusText}` },
+        { error: `请求失败: ${response.status} ${response.statusText}`, details: errorText },
         { status: response.status }
       );
     }
