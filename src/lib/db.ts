@@ -282,6 +282,20 @@ export class DbManager {
       todayRegistrations: 0,
     };
   }
+  
+  // 播放统计相关
+  isStatsSupported(): boolean {
+    if (this.storage && typeof this.storage.isStatsSupported === 'function') {
+      return this.storage.isStatsSupported();
+    }
+    return false;
+  }
+  async getUserPlayStat(userName: string): Promise<any> {
+    if (this.storage && typeof this.storage.getUserPlayStat === 'function') {
+      return this.storage.getUserPlayStat(userName);
+    }
+    return {};
+  }  
 }
 
 // 导出默认实例
