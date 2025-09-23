@@ -224,6 +224,7 @@ async function getInitConfig(
       ShowContentFilter:
         process.env.NEXT_PUBLIC_SHOW_CONTENT_FILTER !== 'false',
       FluidSearch: process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false',
+      EnableVirtualScroll: process.env.ENABLE_VIRTUAL_SCROLL !== 'false',
       // 智能内容审核配置
       IntelligentFilter: {
         enabled: false,
