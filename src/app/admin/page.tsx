@@ -4902,15 +4902,16 @@ const ConfigFileComponent = ({
           body: JSON.stringify({ url: subscriptionUrl }),
         });
 
+        const data = await resp.json().catch(() => ({})); // 保证data总是一个对象
+
         if (!resp.ok) {
-          const data = await resp.json().catch(() => ({}));
-          throw new Error(data.error || `拉取失败: ${resp.status}`);
+          // 优先使用后端返回的错误信息
+          const errorMessage = data.error || `拉取失败: HTTP ${resp.status}`;
+          throw new Error(errorMessage);
         }
 
-        const data = await resp.json();
         if (data.configContent) {
           setConfigContent(data.configContent);
-          // 更新本地配置的最后检查时间
           const currentTime = new Date().toISOString();
           setLastCheckTime(currentTime);
           showSuccess('配置拉取成功', showAlert);
@@ -4918,8 +4919,9 @@ const ConfigFileComponent = ({
           showError('拉取失败：未获取到配置内容', showAlert);
         }
       } catch (err) {
-        showError(err instanceof Error ? err.message : '拉取失败', showAlert);
-        throw err;
+        // 将具体的错误信息展示给用户
+        showError(err instanceof Error ? err.message : '发生未知错误', showAlert);
+        // 此处不需要再向上抛出错误，因为 withLoading 已经处理了
       }
     });
   };
