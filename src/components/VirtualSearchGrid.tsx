@@ -222,8 +222,8 @@ const VirtualSearchGrid = ({
           columnWidth={itemWidth + 16} // 16px for padding (8px on each side)
           rowCount={rowCount}
           rowHeight={itemHeight + 16} // 16px for padding
-          height={gridHeight}
           width={containerWidth}
+          style={{ height: gridHeight }} // 修正：height 属性移入 style 对象
           overscanCount={2}
           // 现代化 API: 使用 itemData 传递上下文
           itemData={{
@@ -236,8 +236,6 @@ const VirtualSearchGrid = ({
             computeGroupStats,
             getGroupRef,
           }}
-          // 现代化 API: 将渲染组件作为属性传递
-          cellComponent={CellComponent}
           onCellsRendered={({
             rowStopIndex: visibleRowStopIndex,
           }: {
@@ -256,7 +254,9 @@ const VirtualSearchGrid = ({
               }
             }
           }}
-        />
+        >
+          {CellComponent}
+        </Grid>
       )}
 
       {/* 增强功能：显示渐进式加载的 "加载更多" 提示 */}
