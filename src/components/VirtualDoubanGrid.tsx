@@ -3,8 +3,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-// 修正 1：修复了 `import` 语句中的语法错误
-import { type CellComponentProps } from 'react-window';
 
 const Grid = dynamic(
   () => import('react-window').then((mod) => ({ default: mod.Grid })),
@@ -45,7 +43,7 @@ interface DoubanCellProps {
   displayData: DoubanItem[];
   displayItemCount: number;
   type: string;
-  isBangumi?: boolean;
+  isBangumi: boolean;
 }
 
 // 渐进式加载配置
@@ -53,33 +51,43 @@ const INITIAL_BATCH_SIZE = 25;
 const LOAD_MORE_BATCH_SIZE = 25;
 const LOAD_MORE_THRESHOLD = 3; // 距离底部还有3行时开始加载
 
-// 使用官方的 CellComponentProps<DoubanCellProps> 替代 any，保留本项目的强类型优点
+// 增强 1：吸收参考项目的精确加载逻辑，并适配本项目的现代 react-window v2.1.0+ API
 const CellComponent = ({
   columnIndex,
   rowIndex,
   style,
   ariaAttributes,
-  // 自定义 props
+  // 自定义 props - 直接解构，不再嵌套在单独对象中
   columnCount,
   displayData,
   displayItemCount,
   type,
   isBangumi,
-}: CellComponentProps<DoubanCellProps>) => {
+}: {
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+  ariaAttributes?: { [key: string]: any };
+  columnCount: number;
+  displayData: DoubanItem[];
+  displayItemCount: number;
+  type: string;
+  isBangumi: boolean;
+}) => {
   const index = rowIndex * columnCount + columnIndex;
 
   if (index >= displayItemCount) {
-    return <div style={style} {...ariaAttributes} />;
+    return <div style={style} {...(ariaAttributes || {})} />;
   }
 
   const item = displayData[index];
 
   if (!item) {
-    return <div style={style} {...ariaAttributes} />;
+    return <div style={style} {...(ariaAttributes || {})} />;
   }
 
   return (
-    <div style={{ ...style, padding: '8px' }} {...ariaAttributes}>
+    <div style={{ ...style, padding: '8px' }} {...(ariaAttributes || {})}>
       <VideoCard
         from='douban'
         title={item.title}
@@ -93,7 +101,6 @@ const CellComponent = ({
     </div>
   );
 };
-
 
 export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   doubanData,
@@ -125,6 +132,25 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
     setVisibleItemCount(INITIAL_BATCH_SIZE);
     setIsVirtualLoadingMore(false);
   }, [doubanData, type, primarySelection]);
+
+  // 强制重新计算容器尺寸的useEffect
+  useEffect(() => {
+    const checkContainer = () => {
+      const element = containerRef.current;
+      const actualWidth = element?.offsetWidth || 0;
+      
+      console.log('VirtualDoubanGrid container debug:', {
+        actualWidth,
+        containerWidth,
+        offsetWidth: element?.offsetWidth,
+        clientWidth: element?.clientWidth,
+        scrollWidth: element?.scrollWidth,
+        element: !!element
+      });
+    };
+    
+    checkContainer();
+  }, [containerWidth]);
 
   // 检查是否还有更多项目可以加载（虚拟层面）
   const hasNextVirtualPage = displayItemCount < totalItemCount;
@@ -181,9 +207,13 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
     ({
       visibleRowStartIndex,
       visibleRowStopIndex,
+      visibleColumnStartIndex,
+      visibleColumnStopIndex,
     }: {
       visibleRowStartIndex: number;
       visibleRowStopIndex: number;
+      visibleColumnStartIndex: number;
+      visibleColumnStopIndex: number;
     }) => {
       // 性能优化：只基于真实可见区域判断加载，避免overscan区域误触发
       if (visibleRowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
@@ -244,8 +274,8 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           columnWidth={itemWidth + 16} // 16px for padding
           rowCount={rowCount}
           rowHeight={itemHeight + 16} // 16px for padding
-          height={gridHeight}
-          width={containerWidth}
+          defaultHeight={gridHeight}  // 修正：使用 defaultHeight 替代 height
+          defaultWidth={containerWidth}  // 修正：使用 defaultWidth 替代 width
           style={{
             overflowX: 'hidden',
             overflowY: 'auto',
@@ -291,4 +321,3 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
 };
 
 export default VirtualDoubanGrid;
-
