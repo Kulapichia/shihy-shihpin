@@ -3,8 +3,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-// 修正：从 react-window 导入官方的 CellComponentProps 类型
-import { type CellComponentProps as ReactWindowCellComponentProps } from 'react-window';
 
 const Grid = dynamic(
   () => import('react-window').then((mod) => ({ default: mod.Grid })),
@@ -39,8 +37,9 @@ interface VirtualDoubanGridProps {
   isBangumi?: boolean;
 }
 
-// cellProps 的类型定义（用户自定义属性）
-interface CellProps {
+// 修正 1：定义 Cell 组件接收的所有 Props (标准 props + 自定义 props)
+// 这些是我们将通过 cellProps 传递的自定义属性
+interface DoubanCellProps {
   columnCount: number;
   displayData: DoubanItem[];
   displayItemCount: number;
@@ -49,31 +48,39 @@ interface CellProps {
   isBangumi?: boolean;
 }
 
+// 这是 CellComponent 实际接收的完整 props 类型
+interface DoubanCellComponentProps extends DoubanCellProps {
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+  ariaAttributes?: any;
+}
+
 // 渐进式加载配置
 const INITIAL_BATCH_SIZE = 25;
 const LOAD_MORE_BATCH_SIZE = 25;
 const LOAD_MORE_THRESHOLD = 3; // 距离底部还有3行时开始加载
 
-// Cell 组件
+// 修正 2：更新 Cell 组件签名以匹配 v2 API
 const CellComponent = ({
   columnIndex,
   rowIndex,
   style,
   ariaAttributes,
-  // 从 cellProps 传递过来的自定义属性
-  columnCount: cellColumnCount,
-  displayData: cellDisplayData,
-  displayItemCount: cellDisplayItemCount,
-  type: cellType,
-  isBangumi: cellIsBangumi,
-}: ReactWindowCellComponentProps<CellProps>) => { // 修正：使用官方的泛型类型
-  const index = rowIndex * cellColumnCount + columnIndex;
+  // 自定义 props 现在是顶级属性，直接解构
+  columnCount,
+  displayData,
+  displayItemCount,
+  type,
+  isBangumi,
+}: DoubanCellComponentProps) => {
+  const index = rowIndex * columnCount + columnIndex;
 
-  if (index >= cellDisplayItemCount) {
+  if (index >= displayItemCount) {
     return <div style={style} />;
   }
 
-  const item = cellDisplayData[index];
+  const item = displayData[index];
 
   if (!item) {
     return <div style={style} />;
@@ -88,8 +95,8 @@ const CellComponent = ({
         douban_id={Number(item.id)}
         rate={item.rate}
         year={item.year}
-        type={cellType === 'movie' ? 'movie' : ''}
-        isBangumi={cellIsBangumi || false}
+        type={type === 'movie' ? 'movie' : ''}
+        isBangumi={isBangumi || false}
       />
     </div>
   );
@@ -176,13 +183,13 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   // 生成骨架屏数据
   const skeletonData = Array.from({ length: 25 }, (_, index) => index);
 
-  // onCellsRendered 回调函数
+  // 修正 3：更新 onCellsRendered 回调函数签名以匹配 v2.1.0+
   const onCellsRendered = useCallback(
     (visibleCells: {
       rowStopIndex: number;
     }) => {
-      const { rowStopIndex: visibleRowStopIndex } = visibleCells;
-      if (visibleRowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
+      const { rowStopIndex } = visibleCells;
+      if (rowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
         if (hasNextVirtualPage && !isVirtualLoadingMore) {
           loadMoreVirtualItems();
         } else if (needsServerData) {
@@ -282,4 +289,3 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
 };
 
 export default VirtualDoubanGrid;
-
