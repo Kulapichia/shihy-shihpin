@@ -106,17 +106,7 @@ export default async function RootLayout({
     FLUID_SEARCH: fluidSearch,
     ENABLE_VIRTUAL_SCROLL: enableVirtualScroll,
   };
-  let enableVirtualScroll = true; // 默认值
-  if (storageType !== 'localstorage') {
-    const config = await getConfig();
-    // ...
-    enableVirtualScroll = config.SiteConfig.EnableVirtualScroll ?? true; // 从配置读取
-  }
 
-  const runtimeConfig = {
-    // ...
-    ENABLE_VIRTUAL_SCROLL: enableVirtualScroll, // 注入到客户端
-  };
   return (
     <html lang='zh-CN' suppressHydrationWarning>
       <head>
