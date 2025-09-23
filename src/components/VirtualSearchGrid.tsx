@@ -36,10 +36,125 @@ interface VirtualSearchGridProps {
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
+// cellProps 的类型定义（用户自定义属性）
+interface SearchCellProps {
+  columnCount: number;
+  displayData: any[];
+  displayItemCount: number;
+  hasNextPage: boolean;
+  viewMode: 'agg' | 'all';
+  searchQuery: string;
+  computeGroupStats: (group: SearchResult[]) => {
+    douban_id?: number;
+    episodes?: number;
+    source_names: string[];
+  };
+  getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
+}
+
+// Cell 组件完整的 Props 类型定义（包含库注入的属性）
+interface SearchCellComponentProps extends SearchCellProps {
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+  ariaAttributes?: any;
+}
+
 // 渐进式加载配置
 const INITIAL_BATCH_SIZE = 20;
 const LOAD_MORE_BATCH_SIZE = 10;
 const LOAD_MORE_THRESHOLD = 5; // 距离底部还有5行时开始加载
+
+// Cell 组件
+const CellComponent = ({
+  columnIndex,
+  rowIndex,
+  style,
+  ariaAttributes,
+  columnCount: cellColumnCount,
+  displayData: cellDisplayData,
+  displayItemCount: cellDisplayItemCount,
+  hasNextPage: cellHasNextPage,
+  viewMode: cellViewMode,
+  searchQuery: cellSearchQuery,
+  computeGroupStats: cellComputeGroupStats,
+  getGroupRef: cellGetGroupRef,
+}: SearchCellComponentProps) => {
+  const index = rowIndex * cellColumnCount + columnIndex;
+
+  // 为每个卡片增加一些内边距，避免它们紧贴在一起
+  const adjustedStyle = { ...style, padding: '8px' };
+
+  // 判断当前索引是否为骨架屏占位
+  if (index >= cellDisplayItemCount) {
+    // 只有在数据流还在进行时才显示骨架屏
+    return cellHasNextPage ? (
+      <div style={adjustedStyle} {...ariaAttributes}>
+        <DoubanCardSkeleton />
+      </div>
+    ) : null;
+  }
+
+  const item = cellDisplayData[index];
+  if (!item) return null; // 安全检查
+
+  // 聚合视图
+  if (cellViewMode === 'agg') {
+    const [mapKey, group] = item as [string, SearchResult[]];
+    const title = group[0]?.title || '';
+    const poster = group[0]?.poster || '';
+    const year = group[0]?.year || 'unknown';
+    const { episodes, source_names, douban_id } =
+      cellComputeGroupStats(group);
+    const type = episodes === 1 ? 'movie' : 'tv';
+
+    return (
+      <div style={adjustedStyle} {...ariaAttributes}>
+        <VideoCard
+          ref={cellGetGroupRef(mapKey)}
+          from='search'
+          isAggregate={true}
+          title={title}
+          poster={poster}
+          year={year}
+          episodes={episodes}
+          source_names={source_names}
+          douban_id={douban_id}
+          query={
+            cellSearchQuery.trim() !== title ? cellSearchQuery.trim() : ''
+          }
+          type={type}
+        />
+      </div>
+    );
+  }
+
+  // 全部视图
+  else {
+    const searchItem = item as SearchResult;
+    return (
+      <div style={adjustedStyle} {...ariaAttributes}>
+        <VideoCard
+          id={searchItem.id}
+          title={searchItem.title}
+          poster={searchItem.poster}
+          episodes={searchItem.episodes.length}
+          source={searchItem.source}
+          source_name={searchItem.source_name}
+          douban_id={searchItem.douban_id}
+          query={
+            cellSearchQuery.trim() !== searchItem.title
+              ? cellSearchQuery.trim()
+              : ''
+          }
+          year={searchItem.year}
+          from='search'
+          type={searchItem.episodes.length > 1 ? 'tv' : 'movie'}
+        />
+      </div>
+    );
+  }
+};
 
 // 主组件
 const VirtualSearchGrid = ({
@@ -107,94 +222,27 @@ const VirtualSearchGrid = ({
     : displayItemCount;
   const rowCount = Math.ceil(itemCountWithPlaceholders / columnCount);
 
-  // 保留功能：单个网格项的渲染组件，适配新版 react-window API
-  const CellComponent = useCallback(({ columnIndex, rowIndex, style, data }: any) => {
-    const {
-      displayData: cellDisplayData,
-      columnCount: cellColumnCount,
-      displayItemCount: cellDisplayItemCount,
-      hasNextPage: cellHasNextPage,
-      viewMode: cellViewMode,
-      searchQuery: cellSearchQuery,
-      computeGroupStats: cellComputeGroupStats,
-      getGroupRef: cellGetGroupRef,
-    } = data;
-
-    const index = rowIndex * cellColumnCount + columnIndex;
-
-    // 为每个卡片增加一些内边距，避免它们紧贴在一起
-    const adjustedStyle = { ...style, padding: '8px' };
-
-    // 判断当前索引是否为骨架屏占位
-    if (index >= cellDisplayItemCount) {
-      // 只有在数据流还在进行时才显示骨架屏
-      return cellHasNextPage ? (
-        <div style={adjustedStyle}>
-          <DoubanCardSkeleton />
-        </div>
-      ) : null;
-    }
-
-    const item = cellDisplayData[index];
-    if (!item) return null; // 安全检查
-
-    // 聚合视图
-    if (cellViewMode === 'agg') {
-      const [mapKey, group] = item as [string, SearchResult[]];
-      const title = group[0]?.title || '';
-      const poster = group[0]?.poster || '';
-      const year = group[0]?.year || 'unknown';
-      const { episodes, source_names, douban_id } =
-        cellComputeGroupStats(group);
-      const type = episodes === 1 ? 'movie' : 'tv';
-
-      return (
-        <div style={adjustedStyle}>
-          <VideoCard
-            ref={cellGetGroupRef(mapKey)}
-            from='search'
-            isAggregate={true}
-            title={title}
-            poster={poster}
-            year={year}
-            episodes={episodes}
-            source_names={source_names}
-            douban_id={douban_id}
-            query={
-              cellSearchQuery.trim() !== title ? cellSearchQuery.trim() : ''
-            }
-            type={type}
-          />
-        </div>
-      );
-    }
-
-    // 全部视图
-    else {
-      const searchItem = item as SearchResult;
-      return (
-        <div style={adjustedStyle}>
-          <VideoCard
-            id={searchItem.id}
-            title={searchItem.title}
-            poster={searchItem.poster}
-            episodes={searchItem.episodes.length}
-            source={searchItem.source}
-            source_name={searchItem.source_name}
-            douban_id={searchItem.douban_id}
-            query={
-              cellSearchQuery.trim() !== searchItem.title
-                ? cellSearchQuery.trim()
-                : ''
-            }
-            year={searchItem.year}
-            from='search'
-            type={searchItem.episodes.length > 1 ? 'tv' : 'movie'}
-          />
-        </div>
-      );
-    }
-  }, []); // 依赖项为空，因为所有数据都通过 itemData 传递
+  // onCellsRendered 回调函数
+  const onCellsRendered = useCallback(
+    (visibleCells: {
+      columnStartIndex: number;
+      columnStopIndex: number;
+      rowStartIndex: number;
+      rowStopIndex: number;
+    }) => {
+      const { rowStopIndex: visibleRowStopIndex } = visibleCells;
+      // 当滚动到底部附近时，触发渐进式加载
+      if (
+        visibleRowStopIndex >=
+        Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD
+      ) {
+        if (hasMoreVirtualItems) {
+          loadMoreVirtualItems();
+        }
+      }
+    },
+    [displayItemCount, columnCount, hasMoreVirtualItems, loadMoreVirtualItems]
+  );
 
   // 在计算出有效高度或宽度前，显示加载状态
   if (gridHeight <= 0 || containerWidth <= 100) {
@@ -215,20 +263,10 @@ const VirtualSearchGrid = ({
         <div className='text-center text-gray-500 py-8'>未找到相关结果</div>
       ) : (
         <Grid
-          // 使用 key 确保在布局参数变化时强制重新渲染
-          key={`search-grid-${containerWidth}-${columnCount}-${viewMode}`}
-          className='hide-scrollbar'
-          columnCount={columnCount}
-          columnWidth={itemWidth + 16} // 16px for padding (8px on each side)
-          rowCount={rowCount}
-          rowHeight={itemHeight + 16} // 16px for padding
-          width={containerWidth}
-          style={{ height: gridHeight }} // 修正：height 属性移入 style 对象
-          overscanCount={2}
-          // 现代化 API: 使用 itemData 传递上下文
-          itemData={{
-            displayData,
+          cellComponent={CellComponent}
+          cellProps={{
             columnCount,
+            displayData,
             displayItemCount,
             hasNextPage,
             viewMode,
@@ -236,27 +274,18 @@ const VirtualSearchGrid = ({
             computeGroupStats,
             getGroupRef,
           }}
-          onCellsRendered={({
-            rowStopIndex: visibleRowStopIndex,
-          }: {
-            rowStartIndex: number;
-            rowStopIndex: number;
-            columnStartIndex: number;
-            columnStopIndex: number;
-          }) => {
-            // 当滚动到底部附近时，触发渐进式加载
-            if (
-              visibleRowStopIndex >=
-              Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD
-            ) {
-              if (hasMoreVirtualItems) {
-                loadMoreVirtualItems();
-              }
-            }
+          columnCount={columnCount}
+          columnWidth={itemWidth + 16} // 16px for padding (8px on each side)
+          rowCount={rowCount}
+          rowHeight={itemHeight + 16} // 16px for padding
+          style={{
+            height: gridHeight,
+            width: containerWidth,
           }}
-        >
-          {CellComponent}
-        </Grid>
+          onCellsRendered={onCellsRendered}
+          overscanCount={2}
+          className='hide-scrollbar'
+        />
       )}
 
       {/* 增强功能：显示渐进式加载的 "加载更多" 提示 */}
