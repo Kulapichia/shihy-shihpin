@@ -1,16 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-explicit-any,@typescript-eslint/no-non-null-assertion,no-empty */
 'use client';
 
+import { Suspense, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ChevronUp, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, {
-  startTransition,
-  Suspense,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
 
 import {
   addSearchHistory,
@@ -29,7 +22,8 @@ import CapsuleSwitch from '@/components/CapsuleSwitch';
 import SearchSuggestions from '@/components/SearchSuggestions';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import VirtualSearchGrid from '@/components/VirtualSearchGrid';
-import { useResponsiveGrid } from '@/hooks/useResponsiveGrid';
+import { useVirtualScroll } from '@/components/VirtualScrollProvider';
+
 function SearchPageClient() {
   // 搜索历史
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -54,7 +48,6 @@ function SearchPageClient() {
   const [contentFilter, setContentFilter] = useState<
     'all' | 'normal' | 'yellow'
   >('all');
-  const { columnCount, columnWidth, containerWidth } = useResponsiveGrid();
   // 聚合卡片 refs 与聚合统计缓存
   const groupRefs = useRef<Map<string, React.RefObject<VideoCardHandle>>>(
     new Map()
@@ -66,6 +59,9 @@ function SearchPageClient() {
     >
   >(new Map());
   const [isDeepSearching, setIsDeepSearching] = useState(false);
+
+  // 引入虚拟滚动上下文
+  const { virtualScrollEnabled, setVirtualScrollEnabled } = useVirtualScroll();
 
   const getGroupRef = (key: string) => {
     let ref = groupRefs.current.get(key);
@@ -601,8 +597,7 @@ function SearchPageClient() {
       document.body.removeEventListener('scroll', handleScroll);
     };
   }, []);
-  // 引入虚拟滚动上下文
-  const { virtualScrollEnabled, setVirtualScrollEnabled } = useVirtualScroll();
+
   useEffect(() => {
     // 当搜索参数变化时更新搜索状态
     const query = searchParams.get('q') || '';
@@ -612,9 +607,11 @@ function SearchPageClient() {
     }
     currentQueryRef.current = query.trim();
 
+    // **重要**: 只有在查询字符串实际存在时才执行搜索逻辑
     if (query) {
       setSearchQuery(query);
       // 新搜索：关闭旧连接并清空结果
+      // **关键修复**: 对新搜索彻底重置所有状态
       if (eventSourceRef.current) {
         try {
           eventSourceRef.current.close();
@@ -631,11 +628,9 @@ function SearchPageClient() {
         flushTimerRef.current = null;
       }
     // 立即重置筛选器状态
-    setFilterAll({ source: 'all', title: 'all', year: 'all', yearOrder: 'none' });
-    setFilterAgg({ source: 'all', title: 'all', year: 'all', yearOrder: 'none' });
+      setFilterAll({ source: 'all', title: 'all', year: 'all', yearOrder: 'none' });
+      setFilterAgg({ source: 'all', title: 'all', year: 'all', yearOrder: 'none' });
 
-    if (query) {
-      setSearchQuery(query);
       setIsLoading(true);
       setShowResults(true);
 
@@ -1053,8 +1048,7 @@ function SearchPageClient() {
                   {/* 虚拟化开关 */}
                   <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
                     <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>虚拟滑动</span>
-                      聚合
-                    </span>
+
                     <div className='relative'>
                       <input
                         type='checkbox'
@@ -1069,6 +1063,14 @@ function SearchPageClient() {
                   
                   {/* 聚合开关 */}
                   <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
+                        <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>
+                          聚合
+                        </span>
+                        <div className='relative'>
+                          <input
+                            type='checkbox'
+                            className='sr-only peer'
+                            checked={viewMode === 'agg'}
                         onChange={() =>
                           setViewMode(viewMode === 'agg' ? 'all' : 'agg')
                         }
@@ -1079,6 +1081,7 @@ function SearchPageClient() {
                   </label>
                 </div>
               </div>
+              
               {/* 条件渲染：虚拟化 vs 传统网格 */}
               {virtualScrollEnabled ? (
                 <VirtualSearchGrid
@@ -1095,101 +1098,91 @@ function SearchPageClient() {
                   computeGroupStats={computeGroupStats}
                 />
               ) : (
-              // 传统网格渲染      
-              {searchResults.length === 0 ? (
-                isLoading ? (
-                  <div className='flex justify-center items-center h-40'>
-                    <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
-                  </div>
+              // 传统网格渲染
+              <>
+                {searchResults.length === 0 ? (
+                  isLoading ? (
+                    <div className='flex justify-center items-center h-40'>
+                      <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
+                    </div>
+                  ) : (
+                    <div className='text-center text-gray-500 py-8 dark:text-gray-400'>
+                      未找到相关结果
+                    </div>
+                  )
                 ) : (
-                  <div className='text-center text-gray-500 py-8 dark:text-gray-400'>
-                    未找到相关结果
-                  </div>
-                )
-              ) : containerWidth > 0 && searchResults.length > 0 ? (
-                <VirtualSearchGrid
-                  results={filteredAllResults}
-                  aggregatedResults={filteredAggResults}
-                  hasNextPage={isLoading && useFluidSearch} // 仅在流式搜索且加载中时显示加载占位
-                  columnCount={columnCount}
-                  columnWidth={columnWidth}
-                  containerWidth={containerWidth}
-                  viewMode={viewMode}
-                  searchQuery={searchQuery}
-                  computeGroupStats={computeGroupStats}
-                  getGroupRef={getGroupRef}
-                />
-              ) : (
-                <div
-                  key={`search-results-${viewMode}`}
-                  className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'
-                >
-                  {viewMode === 'agg'
-                    ? filteredAggResults.map(([mapKey, group]) => {
-                        const title = group[0]?.title || '';
-                        const poster = group[0]?.poster || '';
-                        const year = group[0]?.year || 'unknown';
-                        const { episodes, source_names, douban_id } =
-                          computeGroupStats(group);
-                        const type = episodes === 1 ? 'movie' : 'tv';
+                  <div
+                    key={`search-results-${viewMode}`}
+                    className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'
+                  >
+                    {viewMode === 'agg'
+                      ? filteredAggResults.map(([mapKey, group]) => {
+                          const title = group[0]?.title || '';
+                          const poster = group[0]?.poster || '';
+                          const year = group[0]?.year || 'unknown';
+                          const { episodes, source_names, douban_id } =
+                            computeGroupStats(group);
+                          const type = episodes === 1 ? 'movie' : 'tv';
 
-                        // 如果该聚合第一次出现，写入初始统计
-                        if (!groupStatsRef.current.has(mapKey)) {
-                          groupStatsRef.current.set(mapKey, {
-                            episodes,
-                            source_names,
-                            douban_id,
-                          });
-                        }
+                          // 如果该聚合第一次出现，写入初始统计
+                          if (!groupStatsRef.current.has(mapKey)) {
+                            groupStatsRef.current.set(mapKey, {
+                              episodes,
+                              source_names,
+                              douban_id,
+                            });
+                          }
 
-                        return (
-                          <div key={`agg-${mapKey}`} className='w-full'>
+                          return (
+                            <div key={`agg-${mapKey}`} className='w-full'>
+                              <VideoCard
+                                ref={getGroupRef(mapKey)}
+                                from='search'
+                                isAggregate={true}
+                                title={title}
+                                poster={poster}
+                                year={year}
+                                episodes={episodes}
+                                source_names={source_names}
+                                douban_id={douban_id}
+                                query={
+                                  searchQuery.trim() !== title
+                                    ? searchQuery.trim()
+                                    : ''
+                                }
+                                type={type}
+                              />
+                            </div>
+                          );
+                        })
+                      : filteredAllResults.map((item) => (
+                          <div
+                            key={`all-${item.source}-${item.id}`}
+                            className='w-full'
+                          >
                             <VideoCard
-                              ref={getGroupRef(mapKey)}
-                              from='search'
-                              isAggregate={true}
-                              title={title}
-                              poster={poster}
-                              year={year}
-                              episodes={episodes}
-                              source_names={source_names}
-                              douban_id={douban_id}
+                              id={item.id}
+                              title={item.title}
+                              poster={item.poster}
+                              episodes={item.episodes.length}
+                              source={item.source}
+                              source_name={item.source_name}
+                              douban_id={item.douban_id}
                               query={
-                                searchQuery.trim() !== title
+                                searchQuery.trim() !== item.title
                                   ? searchQuery.trim()
                                   : ''
                               }
-                              type={type}
+                              year={item.year}
+                              from='search'
+                              type={item.episodes.length > 1 ? 'tv' : 'movie'}
                             />
                           </div>
-                        );
-                      })
-                    : filteredAllResults.map((item) => (
-                        <div
-                          key={`all-${item.source}-${item.id}`}
-                          className='w-full'
-                        >
-                          <VideoCard
-                            id={item.id}
-                            title={item.title}
-                            poster={item.poster}
-                            episodes={item.episodes.length}
-                            source={item.source}
-                            source_name={item.source_name}
-                            douban_id={item.douban_id}
-                            query={
-                              searchQuery.trim() !== item.title
-                                ? searchQuery.trim()
-                                : ''
-                            }
-                            year={item.year}
-                            from='search'
-                            type={item.episodes.length > 1 ? 'tv' : 'movie'}
-                          />
-                        </div>
-                      ))}
-                </div>
-              )}
+                        ))}
+                  </div>
+                )}
+              </>
+            )}
 
               {/* 在结果列表下方添加深度搜索按钮 */}
               {!isLoading && showResults && searchResults.length > 0 && (
