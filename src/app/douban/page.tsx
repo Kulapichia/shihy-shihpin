@@ -696,14 +696,14 @@ function DoubanPageClient() {
                 // We use the original VirtualDoubanGrid component with its original props
                 containerWidth > 0 && doubanData.length > 0 ? (
                   <VirtualDoubanGrid
-                    items={doubanData}
-                    hasNextPage={hasMore}
-                    loadNextPage={loadNextPage}
-                    columnCount={columnCount}
-                    columnWidth={itemWidth}
-                    containerWidth={containerWidth}
+                    doubanData={doubanData}
+                    hasMore={hasMore}
+                    isLoadingMore={isLoadingMore}
+                    onLoadMore={loadNextPage}
                     type={type}
+                    loading={loading}
                     primarySelection={primarySelection}
+                    isBangumi={type === 'anime' && primarySelection === '每日放送'}
                   />
                 ) : null
               ) : (
