@@ -24,6 +24,7 @@ export interface SiteConfig {
     DisableYellowFilter: boolean;
     ShowContentFilter?: boolean;
     FluidSearch: boolean;
+    EnableVirtualScroll?: boolean;
     // 智能审核字段
       IntelligentFilter: {
         enabled: boolean;
