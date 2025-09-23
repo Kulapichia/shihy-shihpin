@@ -1091,8 +1091,6 @@ function SearchPageClient() {
                   viewMode={viewMode}
                   searchQuery={searchQuery}
                   isLoading={isLoading && useFluidSearch}
-                  groupRefs={groupRefs}
-                  groupStatsRef={groupStatsRef}
                   getGroupRef={getGroupRef}
                   computeGroupStats={computeGroupStats}
                 />
