@@ -22,17 +22,14 @@ import DoubanCardSkeleton from '@/components/DoubanCardSkeleton';
 interface VirtualDoubanGridProps {
   // 豆瓣数据
   doubanData: DoubanItem[];
-
   // 分页相关
   hasMore: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
-
   // 类型和状态
   type: string;
   loading: boolean;
   primarySelection?: string;
-
   // 是否来自番组计划
   isBangumi?: boolean;
 }
@@ -192,7 +189,6 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           key={`grid-${containerWidth}-${columnCount}`}
           columnCount={columnCount}
           columnWidth={itemWidth + 16}
-          width={containerWidth}
           rowCount={rowCount}
           rowHeight={itemHeight + 16}
           // 2.1.1 新API：使用 cellComponent/cellProps
@@ -212,7 +208,8 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           aria-rowcount={rowCount}
           aria-colcount={columnCount}
           style={{
-            height: gridHeight, // 修正：height 属性移入 style 对象
+            width: containerWidth, // 修正：移到 style 内
+            height: gridHeight,
             overflowX: 'hidden',
             overflowY: 'auto',
             isolation: 'auto',
@@ -222,18 +219,8 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
             }),
           }}
           onCellsRendered={(
-            visibleCells: {
-              rowStopIndex: number;
-              rowStartIndex: number;
-              columnStartIndex: number;
-              columnStopIndex: number;
-            },
-            allCells: {
-              rowStopIndex: number;
-              rowStartIndex: number;
-              columnStartIndex: number;
-              columnStopIndex: number;
-            }
+            visibleCells,
+            allCells
           ) => {
             if (visibleCells.rowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
               if (hasNextVirtualPage && !isVirtualLoadingMore) {
