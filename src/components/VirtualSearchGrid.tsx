@@ -68,33 +68,24 @@ const CellComponent = ({
   rowIndex,
   style,
   ariaAttributes,
-  // 自定义 props
-  columnCount,
-  displayData,
-  displayItemCount,
-  viewMode,
-  searchQuery,
-  groupStatsRef,
-  getGroupRef,
-  computeGroupStats,
+  ...cellProps
 }: {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
   ariaAttributes?: { [key: string]: any };
-  columnCount: number;
-  displayData: any[];
-  displayItemCount: number;
-  viewMode: 'agg' | 'all';
-  searchQuery: string;
-  groupStatsRef: React.MutableRefObject<Map<string, any>>;
-  getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
-  computeGroupStats: (group: SearchResult[]) => {
-    douban_id?: number;
-    episodes?: number;
-    source_names: string[];
-  };
-}) => {
+} & SearchCellProps) => {
+  const {
+    columnCount,
+    displayData,
+    displayItemCount,
+    viewMode,
+    searchQuery,
+    groupStatsRef,
+    getGroupRef,
+    computeGroupStats,
+  } = cellProps;
+
   const index = rowIndex * columnCount + columnIndex;
 
   // 为每个卡片增加一些内边距
@@ -251,19 +242,19 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
   // 更新 onCellsRendered 回调函数签名以匹配 v2.1.0+
   const onCellsRendered = useCallback(
     ({
-      visibleRowStartIndex,
-      visibleRowStopIndex,
-      visibleColumnStartIndex,
-      visibleColumnStopIndex,
+      rowStartIndex,
+      rowStopIndex,
+      columnStartIndex,
+      columnStopIndex,
     }: {
-      visibleRowStartIndex: number;
-      visibleRowStopIndex: number;
-      visibleColumnStartIndex: number;
-      visibleColumnStopIndex: number;
+      rowStartIndex: number;
+      rowStopIndex: number;
+      columnStartIndex: number;
+      columnStopIndex: number;
     }) => {
       // 当滚动到底部附近时，触发渐进式加载
       if (
-        visibleRowStopIndex >=
+        rowStopIndex >=
         Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD
       ) {
         if (hasMoreVirtualItems) {
@@ -290,7 +281,7 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
         <div className='flex justify-center items-center h-40'>
           <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
           <span className='ml-2 text-sm text-gray-500'>
-            初始化虚拟滑动... ({Math.round(containerWidth)}px)
+            初始化虚拟滚动... ({Math.round(containerWidth)}px)
           </span>
         </div>
       ) : (
