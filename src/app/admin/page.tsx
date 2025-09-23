@@ -6177,6 +6177,40 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* 新增：虚拟滑动开关 */}
+      <div>
+        <div className='flex items-center justify-between'>
+          <label
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
+            启用虚拟滑动
+          </label>
+          <button
+            type='button'
+            onClick={() =>
+              setSiteSettings((prev) => ({
+                ...prev,
+                EnableVirtualScroll: !(prev.EnableVirtualScroll ?? true),
+              }))
+            }
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.EnableVirtualScroll !== false
+                ? buttonStyles.toggleOn
+                : buttonStyles.toggleOff
+              }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full ${buttonStyles.toggleThumb} transition-transform ${siteSettings.EnableVirtualScroll !== false
+                  ? buttonStyles.toggleThumbOn
+                  : buttonStyles.toggleThumbOff
+                }`}
+            />
+          </button>
+        </div>
+        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+          在搜索和豆瓣页面启用虚拟列表，可大幅提升大量数据加载时的性能。
+        </p>
+      </div>
+		
       {/* 操作按钮 */}
       <div className='flex justify-end'>
         <button
