@@ -37,61 +37,10 @@ interface VirtualDoubanGridProps {
   isBangumi?: boolean;
 }
 
-// 我们将通过 cellProps 传递的自定义属性
-interface DoubanCellProps {
-  columnCount: number;
-  displayData: DoubanItem[];
-  displayItemCount: number;
-  type: string;
-  isBangumi: boolean;
-}
-
 // 渐进式加载配置
 const INITIAL_BATCH_SIZE = 25;
 const LOAD_MORE_BATCH_SIZE = 25;
 const LOAD_MORE_THRESHOLD = 3; // 距离底部还有3行时开始加载
-
-// 增强 1：吸收参考项目的精确加载逻辑，并适配本项目的现代 react-window v2.1.0+ API
-const CellComponent = ({
-  columnIndex,
-  rowIndex,
-  style,
-  ariaAttributes,
-  ...cellProps
-}: {
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-  ariaAttributes?: { [key: string]: any };
-} & DoubanCellProps) => {
-  const { columnCount, displayData, displayItemCount, type, isBangumi } = cellProps;
-  const index = rowIndex * columnCount + columnIndex;
-
-  if (index >= displayItemCount) {
-    return <div style={style} {...(ariaAttributes || {})} />;
-  }
-
-  const item = displayData[index];
-
-  if (!item) {
-    return <div style={style} {...(ariaAttributes || {})} />;
-  }
-
-  return (
-    <div style={{ ...style, padding: '8px' }} {...(ariaAttributes || {})}>
-      <VideoCard
-        from='douban'
-        title={item.title}
-        poster={item.poster}
-        douban_id={Number(item.id)}
-        rate={item.rate}
-        year={item.year}
-        type={type === 'movie' ? 'movie' : ''} // 电影类型严格控制，tv 不控
-        isBangumi={isBangumi || false}
-      />
-    </div>
-  );
-};
 
 export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   doubanData,
@@ -123,25 +72,6 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
     setVisibleItemCount(INITIAL_BATCH_SIZE);
     setIsVirtualLoadingMore(false);
   }, [doubanData, type, primarySelection]);
-
-  // 强制重新计算容器尺寸的useEffect
-  useEffect(() => {
-    const checkContainer = () => {
-      const element = containerRef.current;
-      const actualWidth = element?.offsetWidth || 0;
-      
-      console.log('VirtualDoubanGrid container debug:', {
-        actualWidth,
-        containerWidth,
-        offsetWidth: element?.offsetWidth,
-        clientWidth: element?.clientWidth,
-        scrollWidth: element?.scrollWidth,
-        element: !!element
-      });
-    };
-    
-    checkContainer();
-  }, [containerWidth]);
 
   // 检查是否还有更多项目可以加载（虚拟层面）
   const hasNextVirtualPage = displayItemCount < totalItemCount;
@@ -184,6 +114,52 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   // 单行网格优化
   const isSingleRow = rowCount === 1;
 
+  // 渲染单个网格项
+  const CellComponent = useCallback(
+    ({
+      columnIndex,
+      rowIndex,
+      style,
+      data, // react-window v2+ uses 'data' prop instead of custom props
+    }: any) => {
+      const {
+        displayData: cellDisplayData,
+        type: cellType,
+        isBangumi: cellIsBangumi,
+        columnCount: cellColumnCount,
+        displayItemCount: cellDisplayItemCount,
+      } = data;
+
+      const index = rowIndex * cellColumnCount + columnIndex;
+
+      if (index >= cellDisplayItemCount) {
+        return <div style={style} />;
+      }
+
+      const item = cellDisplayData[index];
+
+      if (!item) {
+        return <div style={style} />;
+      }
+
+      return (
+        <div style={{ ...style, padding: '8px' }}>
+          <VideoCard
+            from='douban'
+            title={item.title}
+            poster={item.poster}
+            douban_id={Number(item.id)}
+            rate={item.rate}
+            year={item.year}
+            type={cellType === 'movie' ? 'movie' : ''}
+            isBangumi={cellIsBangumi}
+          />
+        </div>
+      );
+    },
+    []
+  );
+
   // 计算网格高度
   const gridHeight = Math.min(
     typeof window !== 'undefined' ? window.innerHeight - 200 : 600,
@@ -192,43 +168,6 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
 
   // 生成骨架屏数据
   const skeletonData = Array.from({ length: 25 }, (_, index) => index);
-  
-  // 增强 1：吸收参考项目的精确加载逻辑，并适配本项目的现代 onCellsRendered 签名
-  const onCellsRendered = useCallback(
-    ({
-      rowStartIndex,
-      rowStopIndex,
-      columnStartIndex,
-      columnStopIndex,
-    }: {
-      rowStartIndex: number;
-      rowStopIndex: number;
-      columnStartIndex: number;
-      columnStopIndex: number;
-    }) => {
-      // 性能优化：只基于真实可见区域判断加载，避免overscan区域误触发
-      if (rowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
-        if (hasNextVirtualPage && !isVirtualLoadingMore) {
-          loadMoreVirtualItems();
-        } else if (needsServerData) {
-          // 防止重复调用onLoadMore - 使用时间戳限制
-          const now = Date.now();
-          if (now - lastLoadMoreCallRef.current > 1000) { // 1秒内只调用一次
-            lastLoadMoreCallRef.current = now;
-            onLoadMore();
-          }
-        }
-      }
-    },
-    [
-      rowCount,
-      hasNextVirtualPage,
-      isVirtualLoadingMore,
-      needsServerData,
-      loadMoreVirtualItems,
-      onLoadMore,
-    ]
-  );
 
   return (
     <div ref={containerRef} className='w-full'>
@@ -240,52 +179,69 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           ))}
         </div>
       ) : totalItemCount === 0 ? (
-        // 无内容提示
         <div className='text-center text-gray-500 py-8'>暂无相关内容</div>
       ) : containerWidth <= 100 ? (
-        // 初始化加载提示
         <div className='flex justify-center items-center h-40'>
           <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
           <span className='ml-2 text-sm text-gray-500'>
-            初始化虚拟滚动... ({Math.round(containerWidth)}px)
+            初始化虚拟滑动... ({Math.round(containerWidth)}px)
           </span>
         </div>
       ) : (
         <Grid
           key={`grid-${containerWidth}-${columnCount}`}
-          cellComponent={CellComponent}
-          cellProps={{
-            columnCount,
-            displayData,
-            displayItemCount,
-            type,
-            isBangumi,
-          }}
           columnCount={columnCount}
-          columnWidth={itemWidth + 16} // 16px for padding
+          columnWidth={itemWidth + 16}
+          width={containerWidth}
           rowCount={rowCount}
-          rowHeight={itemHeight + 16} // 16px for padding
-          defaultHeight={gridHeight}  // 修正：使用 defaultHeight 替代 height
-          defaultWidth={containerWidth}  // 修正：使用 defaultWidth 替代 width
+          rowHeight={itemHeight + 16}
+          itemData={{
+            displayData,
+            type,
+            primarySelection,
+            isBangumi,
+            columnCount,
+            displayItemCount,
+          }}
+          overscanCount={1}
+          // 添加ARIA支持
+          role='grid'
+          aria-label={`豆瓣${type}列表，共${displayItemCount}个结果`}
+          aria-rowcount={rowCount}
+          aria-colcount={columnCount}
           style={{
+            height: gridHeight, // 修正：height 属性移入 style 对象
             overflowX: 'hidden',
             overflowY: 'auto',
-            // 确保不创建新的 stacking context，让菜单能正确显示在最顶层
             isolation: 'auto',
-            // 单行网格优化：防止高度异常
             ...(isSingleRow && {
               minHeight: itemHeight + 16,
               maxHeight: itemHeight + 32,
             }),
           }}
-          onCellsRendered={onCellsRendered}
-          overscanCount={1}
-          // 添加 ARIA 支持提升无障碍体验
-          role='grid'
-          aria-label={`豆瓣${type}列表，共${displayItemCount}个结果`}
-          aria-rowcount={rowCount}
-          aria-colcount={columnCount}
-        />
+          onCellsRendered={({
+            rowStopIndex: visibleRowStopIndex,
+          }: {
+            rowStartIndex: number;
+            rowStopIndex: number;
+            columnStartIndex: number;
+            columnStopIndex: number;
+          }) => {
+            if (visibleRowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
+              if (hasNextVirtualPage && !isVirtualLoadingMore) {
+                loadMoreVirtualItems();
+              } else if (needsServerData) {
+                const now = Date.now();
+                if (now - lastLoadMoreCallRef.current > 1000) {
+                  lastLoadMoreCallRef.current = now;
+                  onLoadMore();
+                }
+              }
+            }
+          }}
+        >
+          {CellComponent}
+        </Grid>
       )}
 
       {/* 加载更多指示器 */}
