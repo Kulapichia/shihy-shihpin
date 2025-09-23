@@ -44,11 +44,11 @@ export default function ShortDramaPage() {
   // 获取分类列表
   useEffect(() => {
     // 清理过期缓存
-    cleanExpiredCache().catch(console.error);
+    // cleanExpiredCache().catch(console.error);
 
     const fetchCategories = async () => {
-      const cats = await getShortDramaCategories();
-      setCategories(cats);
+      // const cats = await getShortDramaCategories();
+      // setCategories(cats);
     };
     fetchCategories();
   }, []);
@@ -60,11 +60,11 @@ export default function ShortDramaPage() {
 
       setLoading(true);
       try {
-        let result: { list: ShortDramaItem[]; hasMore: boolean };
+        let result: { list: ShortDramaItem[]; hasMore: boolean } = { list: [], hasMore: false };
         if (isSearchMode && searchQuery) {
-          result = await searchShortDramas(searchQuery, pageNum, 20);
+          // result = await searchShortDramas(searchQuery, pageNum, 20);
         } else {
-          result = await getShortDramaList(selectedCategory, pageNum, 20);
+          // result = await getShortDramaList(selectedCategory, pageNum, 20);
         }
 
         if (reset) {
@@ -107,9 +107,9 @@ export default function ShortDramaPage() {
       setHasMore(true);
 
       if (query) {
-        const result = await searchShortDramas(query, 1, 20);
-        setDramas(result.list);
-        setHasMore(result.hasMore);
+        // const result = await searchShortDramas(query, 1, 20);
+        // setDramas(result.list);
+        // setHasMore(result.hasMore);
       } else {
         // 退出搜索模式，重新加载分类数据
         loadDramas(1, true);
@@ -180,7 +180,7 @@ export default function ShortDramaPage() {
                 key={`${drama.id}-${index}`}
                 ref={index === dramas.length - 1 ? lastDramaElementRef : null}
               >
-                <ShortDramaCard drama={drama} />
+                {/* <ShortDramaCard drama={drama} /> */}
               </div>
             ))}
           </div>
