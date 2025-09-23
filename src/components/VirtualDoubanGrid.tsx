@@ -3,6 +3,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+// 修正 1：从 'react-window' 导入 CellComponentProps 类型
+import { type CellComponentProps } from 'react-window';
 
 const Grid = dynamic(
   () => import('react-window').then((mod) => ({ default: mod.Grid })),
@@ -37,8 +39,7 @@ interface VirtualDoubanGridProps {
   isBangumi?: boolean;
 }
 
-// 修正 1：定义 Cell 组件接收的所有 Props (标准 props + 自定义 props)
-// 这些是我们将通过 cellProps 传递的自定义属性
+// 定义将通过 cellProps 传递的自定义属性
 interface DoubanCellProps {
   columnCount: number;
   displayData: DoubanItem[];
@@ -48,44 +49,39 @@ interface DoubanCellProps {
   isBangumi?: boolean;
 }
 
-// 这是 CellComponent 实际接收的完整 props 类型
-interface DoubanCellComponentProps extends DoubanCellProps {
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-  ariaAttributes?: any;
-}
-
 // 渐进式加载配置
 const INITIAL_BATCH_SIZE = 25;
 const LOAD_MORE_BATCH_SIZE = 25;
 const LOAD_MORE_THRESHOLD = 3; // 距离底部还有3行时开始加载
 
-// 修正 2：更新 Cell 组件签名以匹配 v2 API
+// 修正 2：更新 Cell 组件以使用从 'react-window' 导入的 CellComponentProps 类型
 const CellComponent = ({
   columnIndex,
   rowIndex,
   style,
   ariaAttributes,
-  // 自定义 props 现在是顶级属性，直接解构
+  // 自定义 props 现在是顶级属性，通过 CellComponentProps<DoubanCellProps> 正确推断类型
   columnCount,
   displayData,
   displayItemCount,
   type,
   isBangumi,
-}: DoubanCellComponentProps) => {
+}: CellComponentProps<DoubanCellProps>) => {
   const index = rowIndex * columnCount + columnIndex;
 
+  // 如果索引超出实际显示的数据范围，则不渲染任何内容
+  // ariaAttributes 依然需要传递给占位的 div
   if (index >= displayItemCount) {
-    return <div style={style} />;
+    return <div style={style} {...ariaAttributes} />;
   }
 
   const item = displayData[index];
 
   if (!item) {
-    return <div style={style} />;
+    return <div style={style} {...ariaAttributes} />;
   }
-
+  
+  // 修正 3：将 ariaAttributes 附加到返回的元素上，以符合 v2.1.0+ 的最佳实践
   return (
     <div style={{ ...style, padding: '8px' }} {...ariaAttributes}>
       <VideoCard
@@ -183,11 +179,17 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   // 生成骨架屏数据
   const skeletonData = Array.from({ length: 25 }, (_, index) => index);
 
-  // 修正 3：更新 onCellsRendered 回调函数签名以匹配 v2.1.0+
+  // 更新 onCellsRendered 回调函数签名以匹配 v2.1.0+
   const onCellsRendered = useCallback(
-    (visibleCells: {
-      rowStopIndex: number;
-    }) => {
+    (
+      visibleCells: {
+        rowStopIndex: number;
+      },
+      // allCells 参数在当前逻辑中未使用，但保持签名兼容性
+      _allCells: {
+        rowStopIndex: number;
+      }
+    ) => {
       const { rowStopIndex } = visibleCells;
       if (rowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
         if (hasNextVirtualPage && !isVirtualLoadingMore) {
@@ -233,6 +235,7 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
         <Grid
           key={`grid-${containerWidth}-${columnCount}`}
           cellComponent={CellComponent}
+          // cellProps 现在是类型安全的，无需 as any
           cellProps={{
             columnCount,
             displayData,
