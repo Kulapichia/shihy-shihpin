@@ -70,6 +70,7 @@ export default async function RootLayout({
     type: 'movie' | 'tv';
     query: string;
   }[];
+  let enableVirtualScroll = true; // 默认值
   if (storageType !== 'localstorage') {
     const config = await getConfig();
     siteName = config.SiteConfig.SiteName;
@@ -89,6 +90,7 @@ export default async function RootLayout({
       query: category.query,
     }));
     fluidSearch = config.SiteConfig.FluidSearch;
+    enableVirtualScroll = config.SiteConfig.EnableVirtualScroll ?? true;
   }
 
   // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
@@ -102,6 +104,7 @@ export default async function RootLayout({
     SHOW_CONTENT_FILTER: showContentFilter,
     CUSTOM_CATEGORIES: customCategories,
     FLUID_SEARCH: fluidSearch,
+    ENABLE_VIRTUAL_SCROLL: enableVirtualScroll,
   };
   let enableVirtualScroll = true; // 默认值
   if (storageType !== 'localstorage') {
@@ -141,7 +144,7 @@ export default async function RootLayout({
         >
           <SiteProvider siteName={siteName} announcement={announcement}>
             <VirtualScrollProvider initialValue={enableVirtualScroll}>
-            {children}
+              {children}
             </VirtualScrollProvider>
             <GlobalErrorIndicator />
           </SiteProvider>
