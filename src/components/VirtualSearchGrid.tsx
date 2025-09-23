@@ -10,10 +10,12 @@ import { useResponsiveGrid } from '@/hooks/useResponsiveGrid';
 
 // 使用 dynamic import 解决 SSR 问题，并提供加载状态
 const Grid = dynamic(
-  () => import('react-window').then(mod => ({ default: mod.Grid })),
-  { 
+  () => import('react-window').then((mod) => ({ default: mod.Grid })),
+  {
     ssr: false,
-    loading: () => <div className="animate-pulse h-96 bg-gray-200 dark:bg-gray-800 rounded-lg" />
+    loading: () => (
+      <div className='animate-pulse h-96 bg-gray-200 dark:bg-gray-800 rounded-lg' />
+    ),
   }
 );
 
@@ -52,7 +54,8 @@ const VirtualSearchGrid = ({
 }: VirtualSearchGridProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   // 增强功能：使用 useResponsiveGrid 实现完全响应式布局
-  const { columnCount, itemWidth, itemHeight, containerWidth } = useResponsiveGrid(containerRef);
+  const { columnCount, itemWidth, itemHeight, containerWidth } =
+    useResponsiveGrid(containerRef);
 
   // 保留功能：动态计算网格高度
   const [gridHeight, setGridHeight] = useState(0);
@@ -91,14 +94,16 @@ const VirtualSearchGrid = ({
     if (isVirtualLoadingMore || !hasMoreVirtualItems) return;
     setIsVirtualLoadingMore(true);
     setTimeout(() => {
-      setVisibleItemCount(prev => Math.min(prev + LOAD_MORE_BATCH_SIZE, totalItemCount));
+      setVisibleItemCount((prev) =>
+        Math.min(prev + LOAD_MORE_BATCH_SIZE, totalItemCount)
+      );
       setIsVirtualLoadingMore(false);
     }, 100);
   }, [isVirtualLoadingMore, hasMoreVirtualItems, totalItemCount]);
 
   // 保留功能：计算总项目数，如果数据仍在流式传输 (hasNextPage)，则增加一行骨架屏占位
-  const itemCountWithPlaceholders = hasNextPage 
-    ? displayItemCount + columnCount 
+  const itemCountWithPlaceholders = hasNextPage
+    ? displayItemCount + columnCount
     : displayItemCount;
   const rowCount = Math.ceil(itemCountWithPlaceholders / columnCount);
 
@@ -114,7 +119,7 @@ const VirtualSearchGrid = ({
       computeGroupStats: cellComputeGroupStats,
       getGroupRef: cellGetGroupRef,
     } = data;
-    
+
     const index = rowIndex * cellColumnCount + columnIndex;
 
     // 为每个卡片增加一些内边距，避免它们紧贴在一起
@@ -139,7 +144,8 @@ const VirtualSearchGrid = ({
       const title = group[0]?.title || '';
       const poster = group[0]?.poster || '';
       const year = group[0]?.year || 'unknown';
-      const { episodes, source_names, douban_id } = cellComputeGroupStats(group);
+      const { episodes, source_names, douban_id } =
+        cellComputeGroupStats(group);
       const type = episodes === 1 ? 'movie' : 'tv';
 
       return (
@@ -154,13 +160,15 @@ const VirtualSearchGrid = ({
             episodes={episodes}
             source_names={source_names}
             douban_id={douban_id}
-            query={cellSearchQuery.trim() !== title ? cellSearchQuery.trim() : ''}
+            query={
+              cellSearchQuery.trim() !== title ? cellSearchQuery.trim() : ''
+            }
             type={type}
           />
         </div>
       );
-    } 
-    
+    }
+
     // 全部视图
     else {
       const searchItem = item as SearchResult;
@@ -174,7 +182,11 @@ const VirtualSearchGrid = ({
             source={searchItem.source}
             source_name={searchItem.source_name}
             douban_id={searchItem.douban_id}
-            query={cellSearchQuery.trim() !== searchItem.title ? cellSearchQuery.trim() : ''}
+            query={
+              cellSearchQuery.trim() !== searchItem.title
+                ? cellSearchQuery.trim()
+                : ''
+            }
             year={searchItem.year}
             from='search'
             type={searchItem.episodes.length > 1 ? 'tv' : 'movie'}
@@ -191,9 +203,7 @@ const VirtualSearchGrid = ({
         {isLoading ? (
           <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
         ) : (
-          <span className='text-sm text-gray-500'>
-            正在初始化布局...
-          </span>
+          <span className='text-sm text-gray-500'>正在初始化布局...</span>
         )}
       </div>
     );
@@ -207,7 +217,7 @@ const VirtualSearchGrid = ({
         <Grid
           // 使用 key 确保在布局参数变化时强制重新渲染
           key={`search-grid-${containerWidth}-${columnCount}-${viewMode}`}
-          className="hide-scrollbar"
+          className='hide-scrollbar'
           columnCount={columnCount}
           columnWidth={itemWidth + 16} // 16px for padding (8px on each side)
           rowCount={rowCount}
@@ -226,18 +236,27 @@ const VirtualSearchGrid = ({
             computeGroupStats,
             getGroupRef,
           }}
-          // 现代化 API: 将渲染组件作为子元素传递
-          onItemsRendered={({ visibleRowStopIndex }) => {
+          // 现代化 API: 将渲染组件作为属性传递
+          cellComponent={CellComponent}
+          onCellsRendered={({
+            rowStopIndex: visibleRowStopIndex,
+          }: {
+            rowStartIndex: number;
+            rowStopIndex: number;
+            columnStartIndex: number;
+            columnStopIndex: number;
+          }) => {
             // 当滚动到底部附近时，触发渐进式加载
-            if (visibleRowStopIndex >= Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD) {
+            if (
+              visibleRowStopIndex >=
+              Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD
+            ) {
               if (hasMoreVirtualItems) {
                 loadMoreVirtualItems();
               }
             }
           }}
-        >
-          {CellComponent}
-        </Grid>
+        />
       )}
 
       {/* 增强功能：显示渐进式加载的 "加载更多" 提示 */}
@@ -249,13 +268,15 @@ const VirtualSearchGrid = ({
           </span>
         </div>
       )}
-      
+
       {/* 增强功能：当所有已加载数据显示完毕且没有新数据流时，显示提示 */}
-      {!hasMoreVirtualItems && !hasNextPage && totalItemCount > INITIAL_BATCH_SIZE && (
-        <div className='text-center py-4 text-sm text-gray-500 dark:text-gray-400'>
-          已显示全部 {totalItemCount} 个结果
-        </div>
-      )}
+      {!hasMoreVirtualItems &&
+        !hasNextPage &&
+        totalItemCount > INITIAL_BATCH_SIZE && (
+          <div className='text-center py-4 text-sm text-gray-500 dark:text-gray-400'>
+            已显示全部 {totalItemCount} 个结果
+          </div>
+        )}
     </div>
   );
 };
