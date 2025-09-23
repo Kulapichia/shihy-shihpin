@@ -225,8 +225,9 @@ const VirtualSearchGrid = ({
           width={containerWidth}
           style={{ height: gridHeight }} // 修正：height 属性移入 style 对象
           overscanCount={2}
-          // 现代化 API: 使用 itemData 传递上下文
-          itemData={{
+          // 2.1.1 新API：使用 cellComponent/cellProps
+          cellComponent={CellComponent}
+          cellProps={{
             displayData,
             columnCount,
             displayItemCount,
@@ -236,17 +237,23 @@ const VirtualSearchGrid = ({
             computeGroupStats,
             getGroupRef,
           }}
-          onCellsRendered={({
-            rowStopIndex: visibleRowStopIndex,
-          }: {
-            rowStartIndex: number;
-            rowStopIndex: number;
-            columnStartIndex: number;
-            columnStopIndex: number;
-          }) => {
+          onCellsRendered={(
+            visibleCells: {
+              rowStopIndex: number;
+              rowStartIndex: number;
+              columnStartIndex: number;
+              columnStopIndex: number;
+            },
+            allCells: {
+              rowStopIndex: number;
+              rowStartIndex: number;
+              columnStartIndex: number;
+              columnStopIndex: number;
+            }
+          ) => {
             // 当滚动到底部附近时，触发渐进式加载
             if (
-              visibleRowStopIndex >=
+              visibleCells.rowStopIndex >=
               Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD
             ) {
               if (hasMoreVirtualItems) {
@@ -254,9 +261,7 @@ const VirtualSearchGrid = ({
               }
             }
           }}
-        >
-          {CellComponent}
-        </Grid>
+        />
       )}
 
       {/* 增强功能：显示渐进式加载的 "加载更多" 提示 */}
