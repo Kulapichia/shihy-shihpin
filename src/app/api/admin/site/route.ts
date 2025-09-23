@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       DoubanImageProxy,
       DisableYellowFilter,
       FluidSearch,
+      EnableVirtualScroll,
       EnableRegistration,
       RegistrationApproval,
       IntelligentFilter, // 新增：从请求体中解构出 IntelligentFilter 对象
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
       DoubanImageProxy: string;
       DisableYellowFilter: boolean;
       FluidSearch: boolean;
+      EnableVirtualScroll: boolean;
       EnableRegistration: boolean;
       RegistrationApproval: boolean;
       IntelligentFilter: any; // 新增：为 IntelligentFilter 添加类型
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
       typeof DoubanImageProxy !== 'string' ||
       typeof DisableYellowFilter !== 'boolean' ||
       typeof FluidSearch !== 'boolean' ||
+      typeof EnableVirtualScroll !== 'boolean' ||
       typeof EnableRegistration !== 'boolean' ||
       typeof RegistrationApproval !== 'boolean' ||
       typeof IntelligentFilter !== 'object' // 新增：校验 IntelligentFilter 是一个对象
@@ -146,6 +149,7 @@ export async function POST(request: NextRequest) {
       DoubanImageProxy,
       DisableYellowFilter,
       FluidSearch,
+      EnableVirtualScroll,
       EnableRegistration,
       RegistrationApproval,
       IntelligentFilter, // 新增：将处理过的 IntelligentFilter 对象加入保存
