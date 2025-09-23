@@ -399,7 +399,9 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
   if (!adminConfig.LiveConfig || !Array.isArray(adminConfig.LiveConfig)) {
     adminConfig.LiveConfig = [];
   }
-
+  if (adminConfig.SiteConfig.EnableVirtualScroll === undefined) {
+    adminConfig.SiteConfig.EnableVirtualScroll = true;
+  }
   // 确保 OAuth 配置存在
   if (!adminConfig.SiteConfig.LinuxDoOAuth) {
     adminConfig.SiteConfig.LinuxDoOAuth = {
