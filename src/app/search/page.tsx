@@ -601,10 +601,15 @@ function SearchPageClient() {
       document.body.removeEventListener('scroll', handleScroll);
     };
   }, []);
-
+  // 引入虚拟滚动上下文
+  const { virtualScrollEnabled, setVirtualScrollEnabled } = useVirtualScroll();
   useEffect(() => {
     // 当搜索参数变化时更新搜索状态
     const query = searchParams.get('q') || '';
+    // 如果查询没有变化，则不执行任何操作
+    if (query.trim() === currentQueryRef.current) {
+      return;
+    }
     currentQueryRef.current = query.trim();
 
     if (query) {
@@ -625,6 +630,12 @@ function SearchPageClient() {
         clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;
       }
+    // 立即重置筛选器状态
+    setFilterAll({ source: 'all', title: 'all', year: 'all', yearOrder: 'none' });
+    setFilterAgg({ source: 'all', title: 'all', year: 'all', yearOrder: 'none' });
+
+    if (query) {
+      setSearchQuery(query);
       setIsLoading(true);
       setShowResults(true);
 
@@ -986,7 +997,7 @@ function SearchPageClient() {
         </div>
 
         {/* 搜索结果或搜索历史 */}
-        <div className='max-w-[95%] mx-auto mt-12 overflow-visible'>
+        <div className='w-full mx-auto mt-12 overflow-visible'>
           {showResults ? (
             <section className='mb-12'>
               {/* 标题 */}
@@ -1039,16 +1050,25 @@ function SearchPageClient() {
                       }
                     />
                   )}
-                  {/* 聚合开关 */}
+                  {/* 虚拟化开关 */}
                   <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
-                    <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>
+                    <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>虚拟滑动</span>
                       聚合
                     </span>
                     <div className='relative'>
                       <input
                         type='checkbox'
                         className='sr-only peer'
-                        checked={viewMode === 'agg'}
+                        checked={virtualScrollEnabled}
+                        onChange={() => setVirtualScrollEnabled(!virtualScrollEnabled)}
+                      />
+                      <div className='w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-blue-500 transition-colors dark:bg-gray-600'></div>
+                      <div className='absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4'></div>
+                    </div>
+                  </label>
+                  
+                  {/* 聚合开关 */}
+                  <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
                         onChange={() =>
                           setViewMode(viewMode === 'agg' ? 'all' : 'agg')
                         }
@@ -1059,6 +1079,23 @@ function SearchPageClient() {
                   </label>
                 </div>
               </div>
+              {/* 条件渲染：虚拟化 vs 传统网格 */}
+              {virtualScrollEnabled ? (
+                <VirtualSearchGrid
+                  allResults={searchResults}
+                  filteredResults={filteredAllResults}
+                  aggregatedResults={aggregatedResults}
+                  filteredAggResults={filteredAggResults}
+                  viewMode={viewMode}
+                  searchQuery={searchQuery}
+                  isLoading={isLoading && useFluidSearch}
+                  groupRefs={groupRefs}
+                  groupStatsRef={groupStatsRef}
+                  getGroupRef={getGroupRef}
+                  computeGroupStats={computeGroupStats}
+                />
+              ) : (
+              // 传统网格渲染      
               {searchResults.length === 0 ? (
                 isLoading ? (
                   <div className='flex justify-center items-center h-40'>
