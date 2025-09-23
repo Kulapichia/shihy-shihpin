@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-explicit-any,@typescript-eslint/no-non-null-assertion,no-empty */
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState, useCallback, startTransition } from 'react';
 import { ChevronUp, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -1085,10 +1085,9 @@ function SearchPageClient() {
               {/* 条件渲染：虚拟化 vs 传统网格 */}
               {virtualScrollEnabled ? (
                 <VirtualSearchGrid
-                  allResults={searchResults}
-                  filteredResults={filteredAllResults}
-                  aggregatedResults={aggregatedResults}
-                  filteredAggResults={filteredAggResults}
+                  results={filteredAllResults}
+                  aggregatedResults={filteredAggResults}
+                  hasNextPage={isLoading && useFluidSearch}
                   viewMode={viewMode}
                   searchQuery={searchQuery}
                   isLoading={isLoading && useFluidSearch}
