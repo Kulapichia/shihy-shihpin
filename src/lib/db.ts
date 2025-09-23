@@ -131,7 +131,21 @@ export class DbManager {
     const favorite = await this.getFavorite(userName, source, id);
     return favorite !== null;
   }
-
+  
+  // 播放统计相关
+  isStatsSupported(): boolean {
+    if (this.storage && typeof this.storage.isStatsSupported === 'function') {
+      return this.storage.isStatsSupported();
+    }
+    return false;
+  }
+  async getUserPlayStat(userName: string): Promise<any> {
+    if (this.storage && typeof this.storage.getUserPlayStat === 'function') {
+      return this.storage.getUserPlayStat(userName);
+    }
+    return {};
+  } 
+  
   // ---------- 用户相关 ----------
   async registerUser(userName: string, password: string): Promise<void> {
     await this.storage.registerUser(userName, password);
@@ -282,20 +296,6 @@ export class DbManager {
       todayRegistrations: 0,
     };
   }
-  
-  // 播放统计相关
-  isStatsSupported(): boolean {
-    if (this.storage && typeof this.storage.isStatsSupported === 'function') {
-      return this.storage.isStatsSupported();
-    }
-    return false;
-  }
-  async getUserPlayStat(userName: string): Promise<any> {
-    if (this.storage && typeof this.storage.getUserPlayStat === 'function') {
-      return this.storage.getUserPlayStat(userName);
-    }
-    return {};
-  }  
 }
 
 // 导出默认实例
