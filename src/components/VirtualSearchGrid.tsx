@@ -3,6 +3,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
+// 修正：从 react-window 导入官方的 CellComponentProps 类型
+import { type CellComponentProps as ReactWindowCellComponentProps } from 'react-window';
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
@@ -52,14 +54,6 @@ interface SearchCellProps {
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
-// Cell 组件完整的 Props 类型定义（包含库注入的属性）
-interface SearchCellComponentProps extends SearchCellProps {
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-  ariaAttributes?: any;
-}
-
 // 渐进式加载配置
 const INITIAL_BATCH_SIZE = 20;
 const LOAD_MORE_BATCH_SIZE = 10;
@@ -71,6 +65,7 @@ const CellComponent = ({
   rowIndex,
   style,
   ariaAttributes,
+  // 从 cellProps 传递过来的自定义属性
   columnCount: cellColumnCount,
   displayData: cellDisplayData,
   displayItemCount: cellDisplayItemCount,
@@ -79,7 +74,7 @@ const CellComponent = ({
   searchQuery: cellSearchQuery,
   computeGroupStats: cellComputeGroupStats,
   getGroupRef: cellGetGroupRef,
-}: SearchCellComponentProps) => {
+}: ReactWindowCellComponentProps<SearchCellProps>) => { // 修正：使用官方的泛型类型
   const index = rowIndex * cellColumnCount + columnIndex;
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
@@ -260,7 +255,7 @@ const VirtualSearchGrid = ({
         <div className='text-center text-gray-500 py-8'>未找到相关结果</div>
       ) : (
         <Grid
-          key={`search-grid-${containerWidth}-${columnCount}-${viewMode}`} // 恢复：强制在布局/视图变化时重新渲染
+          key={`search-grid-${containerWidth}-${columnCount}-${viewMode}`}
           cellComponent={CellComponent}
           cellProps={{
             columnCount,
@@ -309,4 +304,3 @@ const VirtualSearchGrid = ({
 };
 
 export default VirtualSearchGrid;
-
