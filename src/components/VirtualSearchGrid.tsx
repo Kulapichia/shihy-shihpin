@@ -3,8 +3,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-// 修正：从 react-window 导入官方的 CellComponentProps 类型
-import { type CellComponentProps as ReactWindowCellComponentProps } from 'react-window';
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
@@ -38,7 +36,8 @@ interface VirtualSearchGridProps {
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
-// cellProps 的类型定义（用户自定义属性）
+// 修正 1：定义 Cell 组件接收的所有 Props (标准 props + 自定义 props)
+// 这些是我们将通过 cellProps 传递的自定义属性
 interface SearchCellProps {
   columnCount: number;
   displayData: any[];
@@ -54,59 +53,66 @@ interface SearchCellProps {
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
+// 这是 CellComponent 实际接收的完整 props 类型
+interface SearchCellComponentProps extends SearchCellProps {
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+  ariaAttributes?: any;
+}
+
 // 渐进式加载配置
 const INITIAL_BATCH_SIZE = 20;
 const LOAD_MORE_BATCH_SIZE = 10;
 const LOAD_MORE_THRESHOLD = 5; // 距离底部还有5行时开始加载
 
-// Cell 组件
+// 修正 2：更新 Cell 组件签名以匹配 v2 API
 const CellComponent = ({
   columnIndex,
   rowIndex,
   style,
   ariaAttributes,
-  // 从 cellProps 传递过来的自定义属性
-  columnCount: cellColumnCount,
-  displayData: cellDisplayData,
-  displayItemCount: cellDisplayItemCount,
-  hasNextPage: cellHasNextPage,
-  viewMode: cellViewMode,
-  searchQuery: cellSearchQuery,
-  computeGroupStats: cellComputeGroupStats,
-  getGroupRef: cellGetGroupRef,
-}: ReactWindowCellComponentProps<SearchCellProps>) => { // 修正：使用官方的泛型类型
-  const index = rowIndex * cellColumnCount + columnIndex;
+  // 自定义 props 现在是顶级属性，直接解构
+  columnCount,
+  displayData,
+  displayItemCount,
+  hasNextPage,
+  viewMode,
+  searchQuery,
+  computeGroupStats,
+  getGroupRef,
+}: SearchCellComponentProps) => {
+  const index = rowIndex * columnCount + columnIndex;
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
   const adjustedStyle = { ...style, padding: '8px' };
 
   // 判断当前索引是否为骨架屏占位
-  if (index >= cellDisplayItemCount) {
+  if (index >= displayItemCount) {
     // 只有在数据流还在进行时才显示骨架屏
-    return cellHasNextPage ? (
+    return hasNextPage ? (
       <div style={adjustedStyle} {...ariaAttributes}>
         <DoubanCardSkeleton />
       </div>
     ) : null;
   }
 
-  const item = cellDisplayData[index];
+  const item = displayData[index];
   if (!item) return null; // 安全检查
 
   // 聚合视图
-  if (cellViewMode === 'agg') {
+  if (viewMode === 'agg') {
     const [mapKey, group] = item as [string, SearchResult[]];
     const title = group[0]?.title || '';
     const poster = group[0]?.poster || '';
     const year = group[0]?.year || 'unknown';
-    const { episodes, source_names, douban_id } =
-      cellComputeGroupStats(group);
+    const { episodes, source_names, douban_id } = computeGroupStats(group);
     const type = episodes === 1 ? 'movie' : 'tv';
 
     return (
       <div style={adjustedStyle} {...ariaAttributes}>
         <VideoCard
-          ref={cellGetGroupRef(mapKey)}
+          ref={getGroupRef(mapKey)}
           from='search'
           isAggregate={true}
           title={title}
@@ -115,9 +121,7 @@ const CellComponent = ({
           episodes={episodes}
           source_names={source_names}
           douban_id={douban_id}
-          query={
-            cellSearchQuery.trim() !== title ? cellSearchQuery.trim() : ''
-          }
+          query={searchQuery.trim() !== title ? searchQuery.trim() : ''}
           type={type}
         />
       </div>
@@ -138,9 +142,7 @@ const CellComponent = ({
           source_name={searchItem.source_name}
           douban_id={searchItem.douban_id}
           query={
-            cellSearchQuery.trim() !== searchItem.title
-              ? cellSearchQuery.trim()
-              : ''
+            searchQuery.trim() !== searchItem.title ? searchQuery.trim() : ''
           }
           year={searchItem.year}
           from='search'
@@ -217,15 +219,15 @@ const VirtualSearchGrid = ({
     : displayItemCount;
   const rowCount = Math.ceil(itemCountWithPlaceholders / columnCount);
 
-  // onCellsRendered 回调函数
+  // 修正 3：更新 onCellsRendered 回调函数签名以匹配 v2.1.0+
   const onCellsRendered = useCallback(
     (visibleCells: {
       rowStopIndex: number;
     }) => {
-      const { rowStopIndex: visibleRowStopIndex } = visibleCells;
+      const { rowStopIndex } = visibleCells;
       // 当滚动到底部附近时，触发渐进式加载
       if (
-        visibleRowStopIndex >=
+        rowStopIndex >=
         Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD
       ) {
         if (hasMoreVirtualItems) {
