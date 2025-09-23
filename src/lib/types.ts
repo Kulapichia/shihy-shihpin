@@ -90,6 +90,10 @@ export interface IStorage {
   approvePendingUser(username: string): Promise<void>;
   rejectPendingUser(username: string): Promise<void>;
   getRegistrationStats(): Promise<RegistrationStats>;
+  
+  // 播放统计相关
+  isStatsSupported?(): boolean;
+  getUserPlayStat?(userName: string): Promise<any>;
 }
 
 // 搜索结果数据结构
