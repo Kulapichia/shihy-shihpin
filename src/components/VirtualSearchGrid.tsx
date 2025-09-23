@@ -225,9 +225,6 @@ const VirtualSearchGrid = ({
   // onCellsRendered 回调函数
   const onCellsRendered = useCallback(
     (visibleCells: {
-      columnStartIndex: number;
-      columnStopIndex: number;
-      rowStartIndex: number;
       rowStopIndex: number;
     }) => {
       const { rowStopIndex: visibleRowStopIndex } = visibleCells;
@@ -263,6 +260,7 @@ const VirtualSearchGrid = ({
         <div className='text-center text-gray-500 py-8'>未找到相关结果</div>
       ) : (
         <Grid
+          key={`search-grid-${containerWidth}-${columnCount}-${viewMode}`} // 恢复：强制在布局/视图变化时重新渲染
           cellComponent={CellComponent}
           cellProps={{
             columnCount,
@@ -311,3 +309,4 @@ const VirtualSearchGrid = ({
 };
 
 export default VirtualSearchGrid;
+
