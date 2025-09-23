@@ -5,16 +5,16 @@
 import { Filter, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  getShortDramaCategories,
-  getShortDramaList,
-  searchShortDramas,
-} from '@/lib/shortdrama.client';
-import { cleanExpiredCache } from '@/lib/shortdrama-cache';
+// import {
+//   getShortDramaCategories,
+//   getShortDramaList,
+//   searchShortDramas,
+// } from '@/lib/shortdrama.client';
+// import { cleanExpiredCache } from '@/lib/shortdrama-cache';
 import { ShortDramaCategory, ShortDramaItem } from '@/lib/types';
 
 import PageLayout from '@/components/PageLayout';
-import ShortDramaCard from '@/components/ShortDramaCard';
+// import ShortDramaCard from '@/components/ShortDramaCard';
 
 export default function ShortDramaPage() {
   const [categories, setCategories] = useState<ShortDramaCategory[]>([]);
