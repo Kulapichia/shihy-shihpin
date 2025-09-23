@@ -117,16 +117,14 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
       columnIndex,
       rowIndex,
       style,
-      data, // react-window v2+ uses 'data' prop instead of custom props
+      // react-window v2+ uses 'data' prop instead of custom props
+      // 修正：v2+ 的 cellProps 会被直接展开，而不是嵌套在 data 对象中
+      displayData: cellDisplayData,
+      type: cellType,
+      isBangumi: cellIsBangumi,
+      columnCount: cellColumnCount,
+      displayItemCount: cellDisplayItemCount,
     }: any) => {
-      const {
-        displayData: cellDisplayData,
-        type: cellType,
-        isBangumi: cellIsBangumi,
-        columnCount: cellColumnCount,
-        displayItemCount: cellDisplayItemCount,
-      } = data;
-
       const index = rowIndex * cellColumnCount + columnIndex;
 
       if (index >= cellDisplayItemCount) {
