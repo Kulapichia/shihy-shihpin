@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, a,{ useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-// 修正 1：从 'react-window' 导入 Grid 和官方的 CellComponentProps 类型
-import { Grid, type CellComponentProps } from 'react-window';
+// 修正 1：修复了 `import` 语句中的语法错误
+import { type CellComponentProps } from 'react-window';
 
 const Grid = dynamic(
   () => import('react-window').then((mod) => ({ default: mod.Grid })),
@@ -39,13 +39,12 @@ interface VirtualDoubanGridProps {
   isBangumi?: boolean;
 }
 
-// 这些是我们将通过 cellProps 传递的自定义属性
+// 我们将通过 cellProps 传递的自定义属性
 interface DoubanCellProps {
   columnCount: number;
   displayData: DoubanItem[];
   displayItemCount: number;
   type: string;
-  primarySelection?: string;
   isBangumi?: boolean;
 }
 
@@ -54,21 +53,19 @@ const INITIAL_BATCH_SIZE = 25;
 const LOAD_MORE_BATCH_SIZE = 25;
 const LOAD_MORE_THRESHOLD = 3; // 距离底部还有3行时开始加载
 
-// 修正 2：使用官方的 CellComponentProps<DoubanCellProps> 替代手动扩展的接口
-// 这能确保类型正确，同时保留您分离自定义 props 的编码风格
+// 使用官方的 CellComponentProps<DoubanCellProps> 替代 any，保留本项目的强类型优点
 const CellComponent = ({
   columnIndex,
   rowIndex,
   style,
   ariaAttributes,
-  // 自定义 props 现在是顶级属性，直接解构
+  // 自定义 props
   columnCount,
   displayData,
   displayItemCount,
   type,
-  primarySelection, // 保留 primarySelection
   isBangumi,
-}: CellComponentProps<DoubanCellProps>) => { // 类型修正点
+}: CellComponentProps<DoubanCellProps>) => {
   const index = rowIndex * columnCount + columnIndex;
 
   if (index >= displayItemCount) {
@@ -90,12 +87,13 @@ const CellComponent = ({
         douban_id={Number(item.id)}
         rate={item.rate}
         year={item.year}
-        type={type === 'movie' ? 'movie' : ''}
+        type={type === 'movie' ? 'movie' : ''} // 电影类型严格控制，tv 不控
         isBangumi={isBangumi || false}
       />
     </div>
   );
 };
+
 
 export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   doubanData,
@@ -177,17 +175,24 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
 
   // 生成骨架屏数据
   const skeletonData = Array.from({ length: 25 }, (_, index) => index);
-
-  // 修正 3：更新 onCellsRendered 回调函数签名以匹配 v2.1.0+
-  // v2.1.0+ 会传递两个参数，我们只需要第一个（visibleCells）
+  
+  // 增强 1：吸收参考项目的精确加载逻辑，并适配本项目的现代 onCellsRendered 签名
   const onCellsRendered = useCallback(
-    ({ rowStopIndex }: { rowStopIndex: number; }) => {
-      if (rowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
+    ({
+      visibleRowStartIndex,
+      visibleRowStopIndex,
+    }: {
+      visibleRowStartIndex: number;
+      visibleRowStopIndex: number;
+    }) => {
+      // 性能优化：只基于真实可见区域判断加载，避免overscan区域误触发
+      if (visibleRowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
         if (hasNextVirtualPage && !isVirtualLoadingMore) {
           loadMoreVirtualItems();
         } else if (needsServerData) {
+          // 防止重复调用onLoadMore - 使用时间戳限制
           const now = Date.now();
-          if (now - lastLoadMoreCallRef.current > 1000) {
+          if (now - lastLoadMoreCallRef.current > 1000) { // 1秒内只调用一次
             lastLoadMoreCallRef.current = now;
             onLoadMore();
           }
@@ -214,8 +219,10 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           ))}
         </div>
       ) : totalItemCount === 0 ? (
+        // 无内容提示
         <div className='text-center text-gray-500 py-8'>暂无相关内容</div>
       ) : containerWidth <= 100 ? (
+        // 初始化加载提示
         <div className='flex justify-center items-center h-40'>
           <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
           <span className='ml-2 text-sm text-gray-500'>
@@ -231,19 +238,20 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
             displayData,
             displayItemCount,
             type,
-            primarySelection,
             isBangumi,
           }}
           columnCount={columnCount}
-          columnWidth={itemWidth + 16}
+          columnWidth={itemWidth + 16} // 16px for padding
           rowCount={rowCount}
-          rowHeight={itemHeight + 16}
+          rowHeight={itemHeight + 16} // 16px for padding
+          height={gridHeight}
+          width={containerWidth}
           style={{
-            height: gridHeight,
-            width: containerWidth,
             overflowX: 'hidden',
             overflowY: 'auto',
+            // 确保不创建新的 stacking context，让菜单能正确显示在最顶层
             isolation: 'auto',
+            // 单行网格优化：防止高度异常
             ...(isSingleRow && {
               minHeight: itemHeight + 16,
               maxHeight: itemHeight + 32,
@@ -251,6 +259,7 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           }}
           onCellsRendered={onCellsRendered}
           overscanCount={1}
+          // 添加 ARIA 支持提升无障碍体验
           role='grid'
           aria-label={`豆瓣${type}列表，共${displayItemCount}个结果`}
           aria-rowcount={rowCount}
