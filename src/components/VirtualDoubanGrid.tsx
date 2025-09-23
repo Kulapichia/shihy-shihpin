@@ -70,7 +70,6 @@ const CellComponent = ({
   displayData: cellDisplayData,
   displayItemCount: cellDisplayItemCount,
   type: cellType,
-  primarySelection: cellPrimarySelection,
   isBangumi: cellIsBangumi,
 }: CellComponentProps) => {
   const index = rowIndex * cellColumnCount + columnIndex;
@@ -185,9 +184,6 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   // onCellsRendered 回调函数
   const onCellsRendered = useCallback(
     (visibleCells: {
-      columnStartIndex: number;
-      columnStopIndex: number;
-      rowStartIndex: number;
       rowStopIndex: number;
     }) => {
       const { rowStopIndex: visibleRowStopIndex } = visibleCells;
@@ -233,6 +229,7 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
         </div>
       ) : (
         <Grid
+          key={`grid-${containerWidth}-${columnCount}`} // 恢复：强制在布局变化时重新渲染
           cellComponent={CellComponent}
           cellProps={{
             columnCount,
@@ -259,6 +256,11 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
           }}
           onCellsRendered={onCellsRendered}
           overscanCount={1}
+          // 恢复：添加ARIA支持
+          role='grid'
+          aria-label={`豆瓣${type}列表，共${displayItemCount}个结果`}
+          aria-rowcount={rowCount}
+          aria-colcount={columnCount}
         />
       )}
 
@@ -286,3 +288,4 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
 };
 
 export default VirtualDoubanGrid;
+
