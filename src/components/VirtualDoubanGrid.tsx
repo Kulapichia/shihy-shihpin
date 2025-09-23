@@ -57,23 +57,14 @@ const CellComponent = ({
   rowIndex,
   style,
   ariaAttributes,
-  // 自定义 props - 直接解构，不再嵌套在单独对象中
-  columnCount,
-  displayData,
-  displayItemCount,
-  type,
-  isBangumi,
+  ...cellProps
 }: {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
   ariaAttributes?: { [key: string]: any };
-  columnCount: number;
-  displayData: DoubanItem[];
-  displayItemCount: number;
-  type: string;
-  isBangumi: boolean;
-}) => {
+} & DoubanCellProps) => {
+  const { columnCount, displayData, displayItemCount, type, isBangumi } = cellProps;
   const index = rowIndex * columnCount + columnIndex;
 
   if (index >= displayItemCount) {
@@ -205,18 +196,18 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
   // 增强 1：吸收参考项目的精确加载逻辑，并适配本项目的现代 onCellsRendered 签名
   const onCellsRendered = useCallback(
     ({
-      visibleRowStartIndex,
-      visibleRowStopIndex,
-      visibleColumnStartIndex,
-      visibleColumnStopIndex,
+      rowStartIndex,
+      rowStopIndex,
+      columnStartIndex,
+      columnStopIndex,
     }: {
-      visibleRowStartIndex: number;
-      visibleRowStopIndex: number;
-      visibleColumnStartIndex: number;
-      visibleColumnStopIndex: number;
+      rowStartIndex: number;
+      rowStopIndex: number;
+      columnStartIndex: number;
+      columnStopIndex: number;
     }) => {
       // 性能优化：只基于真实可见区域判断加载，避免overscan区域误触发
-      if (visibleRowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
+      if (rowStopIndex >= rowCount - LOAD_MORE_THRESHOLD) {
         if (hasNextVirtualPage && !isVirtualLoadingMore) {
           loadMoreVirtualItems();
         } else if (needsServerData) {
@@ -256,7 +247,7 @@ export const VirtualDoubanGrid: React.FC<VirtualDoubanGridProps> = ({
         <div className='flex justify-center items-center h-40'>
           <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
           <span className='ml-2 text-sm text-gray-500'>
-            初始化虚拟滑动... ({Math.round(containerWidth)}px)
+            初始化虚拟滚动... ({Math.round(containerWidth)}px)
           </span>
         </div>
       ) : (
