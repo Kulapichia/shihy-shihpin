@@ -642,7 +642,9 @@ function DoubanPageClient() {
   return (
     <PageLayout activePath={getActivePath()}>
       <div className='px-4 sm:px-10 py-4 sm:py-8 overflow-visible'>
+        {/* 页面标题和选择器 */}
         <div className='mb-6 sm:mb-8 space-y-4 sm:space-y-6'>
+          {/* 页面标题 */}
           <div>
             <h1 className='text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2 dark:text-gray-200'>
               {getPageTitle()}
@@ -651,6 +653,7 @@ function DoubanPageClient() {
               {getPageDescription()}
             </p>
           </div>
+          {/* 选择器组件 */}
           {type !== 'custom' ? (
             <div className='bg-white/60 dark:bg-gray-800/40 rounded-2xl p-4 sm:p-6 border border-gray-200/30 dark:border-gray-700/30 backdrop-blur-sm'>
               <DoubanSelector type={type as 'movie' | 'tv' | 'show' | 'anime'} primarySelection={primarySelection} secondarySelection={secondarySelection} onPrimaryChange={handlePrimaryChange} onSecondaryChange={handleSecondaryChange} onMultiLevelChange={handleMultiLevelChange} onWeekdayChange={handleWeekdayChange} />
@@ -679,7 +682,9 @@ function DoubanPageClient() {
           {/* --- End: Added Virtual Scroll Toggle UI --- */}
         </div>
 
+        {/* 内容网格 */}
         <div className='max-w-[95%] mx-auto mt-8 overflow-visible'>
+          {/* 虚拟化网格或骨架屏 */}
           {loading || !selectorsReady ? (
             <div className='justify-start grid grid-cols-3 gap-x-2 gap-y-12 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20'>
               {skeletonData.map((index) => <DoubanCardSkeleton key={index} />)}
