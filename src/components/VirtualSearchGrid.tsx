@@ -3,6 +3,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
+// 修正 1：从 'react-window' 导入 Grid 和官方的 CellComponentProps 类型
+import { Grid, type CellComponentProps } from 'react-window';
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
@@ -36,7 +38,6 @@ interface VirtualSearchGridProps {
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
-// 修正 1：定义 Cell 组件接收的所有 Props (标准 props + 自定义 props)
 // 这些是我们将通过 cellProps 传递的自定义属性
 interface SearchCellProps {
   columnCount: number;
@@ -53,20 +54,12 @@ interface SearchCellProps {
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
-// 这是 CellComponent 实际接收的完整 props 类型
-interface SearchCellComponentProps extends SearchCellProps {
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-  ariaAttributes?: any;
-}
-
 // 渐进式加载配置
 const INITIAL_BATCH_SIZE = 20;
 const LOAD_MORE_BATCH_SIZE = 10;
 const LOAD_MORE_THRESHOLD = 5; // 距离底部还有5行时开始加载
 
-// 修正 2：更新 Cell 组件签名以匹配 v2 API
+// 修正 2：使用官方的 CellComponentProps<SearchCellProps> 替代手动扩展的接口
 const CellComponent = ({
   columnIndex,
   rowIndex,
@@ -81,7 +74,7 @@ const CellComponent = ({
   searchQuery,
   computeGroupStats,
   getGroupRef,
-}: SearchCellComponentProps) => {
+}: CellComponentProps<SearchCellProps>) => { // 类型修正点
   const index = rowIndex * columnCount + columnIndex;
 
   // 为每个卡片增加一些内边距，避免它们紧贴在一起
@@ -221,10 +214,7 @@ const VirtualSearchGrid = ({
 
   // 修正 3：更新 onCellsRendered 回调函数签名以匹配 v2.1.0+
   const onCellsRendered = useCallback(
-    (visibleCells: {
-      rowStopIndex: number;
-    }) => {
-      const { rowStopIndex } = visibleCells;
+    ({ rowStopIndex }: { rowStopIndex: number; }) => {
       // 当滚动到底部附近时，触发渐进式加载
       if (
         rowStopIndex >=
