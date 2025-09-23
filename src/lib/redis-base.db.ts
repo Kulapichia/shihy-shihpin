@@ -642,4 +642,41 @@ export abstract class BaseRedisStorage implements IStorage {
       todayRegistrations,
     };
   }
+  
+  // ---------- 播放统计 ----------
+  isStatsSupported(): boolean {
+    return true; // Redis, Upstash, Kvrocks 都支持
+  }
+
+  async getUserPlayStat(userName: string): Promise<any> {
+    const records = await this.getAllPlayRecords(userName);
+    const stats = {
+      totalPlays: Object.keys(records).length,
+      totalWatchTime: 0,
+      lastPlayTime: 0,
+      firstWatchDate: 0,
+      totalMovies: 0,
+    };
+
+    let firstWatch = Infinity;
+    const movies = new Set<string>();
+
+    Object.values(records).forEach(record => {
+      stats.totalWatchTime += record.play_time;
+      if (record.save_time > stats.lastPlayTime) {
+        stats.lastPlayTime = record.save_time;
+      }
+      if (record.save_time < firstWatch) {
+        firstWatch = record.save_time;
+      }
+      movies.add(record.title);
+    });
+
+    stats.firstWatchDate = firstWatch === Infinity ? 0 : firstWatch;
+    stats.totalMovies = movies.size;
+    stats.lastPlayTime *= 1000; // to ms
+    stats.firstWatchDate *= 1000; // to ms
+
+    return stats;
+  }  
 }
