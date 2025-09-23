@@ -3,8 +3,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-// 修正 1：从 'react-window' 导入 Grid 和官方的 CellComponentProps 类型
-import { type CellComponentProps } from 'react-window';
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import { useResponsiveGrid } from '@/hooks/useResponsiveGrid';
@@ -23,18 +21,24 @@ const Grid = dynamic(
 
 // VirtualSearchGrid 组件的 Props 定义
 interface VirtualSearchGridProps {
-  results: SearchResult[];
+  // 搜索结果数据
+  allResults: SearchResult[];
+  filteredResults: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
-  hasNextPage: boolean; // 关键 prop：用于判断数据流是否仍在进行
+  filteredAggResults: [string, SearchResult[]][];
+  
+  // 视图模式
   viewMode: 'agg' | 'all';
+  
+  // 搜索相关
   searchQuery: string;
-  isLoading: boolean; // 用于显示初始加载状态
-  computeGroupStats: (group: SearchResult[]) => {
-    douban_id?: number;
-    episodes?: number;
-    source_names: string[];
-  };
-  getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
+  isLoading: boolean;
+  
+  // VideoCard相关props
+  groupRefs: React.MutableRefObject<Map<string, React.RefObject<any>>>;
+  groupStatsRef: React.MutableRefObject<Map<string, any>>;
+  getGroupRef: (key: string) => React.RefObject<any>;
+  computeGroupStats: (group: SearchResult[]) => any;
 }
 
 // 通过 cellProps 传递的自定义属性
@@ -42,23 +46,23 @@ interface SearchCellProps {
   columnCount: number;
   displayData: any[];
   displayItemCount: number;
-  hasNextPage: boolean;
   viewMode: 'agg' | 'all';
   searchQuery: string;
+  groupStatsRef: React.MutableRefObject<Map<string, any>>;
+  getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
   computeGroupStats: (group: SearchResult[]) => {
     douban_id?: number;
     episodes?: number;
     source_names: string[];
   };
-  getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
 // 渐进式加载配置
-const INITIAL_BATCH_SIZE = 20;
-const LOAD_MORE_BATCH_SIZE = 10;
+const INITIAL_BATCH_SIZE = 12;
+const LOAD_MORE_BATCH_SIZE = 8;
 const LOAD_MORE_THRESHOLD = 5; // 距离底部还有5行时开始加载
 
-// 使用官方的 CellComponentProps<SearchCellProps>
+// 使用最新的 react-window v2.1.0+ API
 const CellComponent = ({
   columnIndex,
   rowIndex,
@@ -68,26 +72,37 @@ const CellComponent = ({
   columnCount,
   displayData,
   displayItemCount,
-  hasNextPage,
   viewMode,
   searchQuery,
-  computeGroupStats,
+  groupStatsRef,
   getGroupRef,
-}: CellComponentProps<SearchCellProps>) => {
+  computeGroupStats,
+}: {
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+  ariaAttributes?: { [key: string]: any };
+  columnCount: number;
+  displayData: any[];
+  displayItemCount: number;
+  viewMode: 'agg' | 'all';
+  searchQuery: string;
+  groupStatsRef: React.MutableRefObject<Map<string, any>>;
+  getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
+  computeGroupStats: (group: SearchResult[]) => {
+    douban_id?: number;
+    episodes?: number;
+    source_names: string[];
+  };
+}) => {
   const index = rowIndex * columnCount + columnIndex;
 
   // 为每个卡片增加一些内边距
   const adjustedStyle = { ...style, padding: '8px' };
 
-  // 增强 1：吸收并优化骨架屏占位逻辑
-  // 判断当前索引是否为骨架屏占位
+  // 判断当前索引是否超出显示范围
   if (index >= displayItemCount) {
-    // 只有在数据流还在进行时 (hasNextPage) 才显示骨架屏
-    return hasNextPage ? (
-      <div style={adjustedStyle} {...ariaAttributes}>
-        <DoubanCardSkeleton />
-      </div>
-    ) : null;
+    return <div style={adjustedStyle} {...(ariaAttributes || {})} />;
   }
 
   const item = displayData[index];
@@ -102,8 +117,13 @@ const CellComponent = ({
     const { episodes, source_names, douban_id } = computeGroupStats(group);
     const type = episodes === 1 ? 'movie' : 'tv';
 
+    // 如果该聚合第一次出现，写入初始统计
+    if (!groupStatsRef.current.has(mapKey)) {
+      groupStatsRef.current.set(mapKey, { episodes, source_names, douban_id });
+    }
+
     return (
-      <div style={adjustedStyle} {...ariaAttributes}>
+      <div style={adjustedStyle} {...(ariaAttributes || {})}>
         <VideoCard
           ref={getGroupRef(mapKey)}
           from='search'
@@ -124,7 +144,7 @@ const CellComponent = ({
   else {
     const searchItem = item as SearchResult;
     return (
-      <div style={adjustedStyle} {...ariaAttributes}>
+      <div style={adjustedStyle} {...(ariaAttributes || {})}>
         <VideoCard
           id={searchItem.id}
           title={searchItem.title}
@@ -147,14 +167,17 @@ const CellComponent = ({
 
 // 主组件
 export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
-  results,
+  allResults,
+  filteredResults,
   aggregatedResults,
-  hasNextPage,
+  filteredAggResults,
   viewMode,
   searchQuery,
   isLoading,
-  computeGroupStats,
+  groupRefs,
+  groupStatsRef,
   getGroupRef,
+  computeGroupStats,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   // 亮点功能：使用 useResponsiveGrid 实现完全响应式布局
@@ -163,7 +186,7 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
 
   // 保留功能：动态计算网格高度
   const gridHeight = Math.min(
-    typeof window !== 'undefined' ? window.innerHeight - 280 : 600, // 280px 为顶部UI估算高度
+    typeof window !== 'undefined' ? window.innerHeight - 200 : 600, // 200px 为顶部UI估算高度
     800
   );
 
@@ -171,13 +194,13 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
   const [visibleItemCount, setVisibleItemCount] = useState(INITIAL_BATCH_SIZE);
   const [isVirtualLoadingMore, setIsVirtualLoadingMore] = useState(false);
 
-  // 根据视图模式选择数据源
-  const dataSource = viewMode === 'agg' ? aggregatedResults : results;
-  const totalItemCount = dataSource.length;
+  // 选择当前显示的数据
+  const currentData = viewMode === 'agg' ? filteredAggResults : filteredResults;
+  const totalItemCount = currentData.length;
 
   // 实际显示的项目数量（考虑渐进式加载）
   const displayItemCount = Math.min(visibleItemCount, totalItemCount);
-  const displayData = dataSource.slice(0, displayItemCount);
+  const displayData = currentData.slice(0, displayItemCount);
 
   // 检查是否还有更多项目可以从已加载的数据中渲染
   const hasMoreVirtualItems = displayItemCount < totalItemCount;
@@ -185,9 +208,29 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
   // 当视图模式或数据源变化时，重置渐进式加载
   useEffect(() => {
     setVisibleItemCount(INITIAL_BATCH_SIZE);
-  }, [viewMode, results, aggregatedResults]);
+    setIsVirtualLoadingMore(false);
+  }, [viewMode, currentData]);
 
-  // 加载更多虚拟项目（从已有的 dataSource 中）
+  // 强制重新计算容器尺寸的useEffect
+  useEffect(() => {
+    const checkContainer = () => {
+      const element = containerRef.current;
+      const actualWidth = element?.offsetWidth || 0;
+      
+      console.log('VirtualSearchGrid container debug:', {
+        actualWidth,
+        containerWidth,
+        offsetWidth: element?.offsetWidth,
+        clientWidth: element?.clientWidth,
+        scrollWidth: element?.scrollWidth,
+        element: !!element
+      });
+    };
+    
+    checkContainer();
+  }, [containerWidth]);
+
+  // 加载更多虚拟项目（从已有的 currentData 中）
   const loadMoreVirtualItems = useCallback(() => {
     if (isVirtualLoadingMore || !hasMoreVirtualItems) return;
     setIsVirtualLoadingMore(true);
@@ -199,18 +242,28 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
     }, 100);
   }, [isVirtualLoadingMore, hasMoreVirtualItems, totalItemCount]);
 
-  // 保留功能：计算总项目数，如果数据仍在流式传输 (hasNextPage)，则增加一行骨架屏占位
-  const itemCountWithPlaceholders = hasNextPage
-    ? displayItemCount + columnCount
-    : displayItemCount;
-  const rowCount = Math.ceil(itemCountWithPlaceholders / columnCount);
+  // 计算网格行数
+  const rowCount = Math.ceil(displayItemCount / columnCount);
+
+  // 单行网格优化：确保单行时布局正确
+  const isSingleRow = rowCount === 1;
 
   // 更新 onCellsRendered 回调函数签名以匹配 v2.1.0+
   const onCellsRendered = useCallback(
-    ({ rowStopIndex }: { rowStopIndex: number; }) => {
+    ({
+      visibleRowStartIndex,
+      visibleRowStopIndex,
+      visibleColumnStartIndex,
+      visibleColumnStopIndex,
+    }: {
+      visibleRowStartIndex: number;
+      visibleRowStopIndex: number;
+      visibleColumnStartIndex: number;
+      visibleColumnStopIndex: number;
+    }) => {
       // 当滚动到底部附近时，触发渐进式加载
       if (
-        rowStopIndex >=
+        visibleRowStopIndex >=
         Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD
       ) {
         if (hasMoreVirtualItems) {
@@ -223,8 +276,16 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
 
   return (
     <div ref={containerRef} className='w-full'>
-      {totalItemCount === 0 && !isLoading ? (
-        <div className='text-center text-gray-500 py-8 dark:text-gray-400'>未找到相关结果</div>
+      {totalItemCount === 0 ? (
+        <div className='flex justify-center items-center h-40'>
+          {isLoading ? (
+            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
+          ) : (
+            <div className='text-center text-gray-500 py-8 dark:text-gray-400'>
+              未找到相关结果
+            </div>
+          )}
+        </div>
       ) : containerWidth <= 100 ? (
         <div className='flex justify-center items-center h-40'>
           <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
@@ -240,27 +301,41 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
             columnCount,
             displayData,
             displayItemCount,
-            hasNextPage,
             viewMode,
             searchQuery,
-            computeGroupStats,
+            groupStatsRef,
             getGroupRef,
+            computeGroupStats,
           }}
           columnCount={columnCount}
           columnWidth={itemWidth + 16} // 16px for padding
           rowCount={rowCount}
           rowHeight={itemHeight + 16} // 16px for padding
-          height={gridHeight}
-          width={containerWidth}
+          defaultHeight={gridHeight}  // 修正：使用 defaultHeight 替代 height
+          defaultWidth={containerWidth}  // 修正：使用 defaultWidth 替代 width
           onCellsRendered={onCellsRendered}
-          overscanCount={2}
-          role='grid'
-          aria-label={`搜索结果列表 "${searchQuery}"`}
+          overscanCount={1}
+          // 添加 ARIA 支持提升无障碍体验
+          role="grid"
+          aria-label={`搜索结果列表 "${searchQuery}"，共${displayItemCount}个结果，当前视图：${viewMode === 'agg' ? '聚合视图' : '全部结果'}`}
+          aria-rowcount={rowCount}
+          aria-colcount={columnCount}
+          style={{
+            overflowX: 'hidden',
+            overflowY: 'auto',
+            // 确保不创建新的stacking context，让菜单能正确显示在最顶层
+            isolation: 'auto',
+            // 单行网格优化：防止高度异常
+            ...(isSingleRow && {
+              minHeight: itemHeight + 16,
+              maxHeight: itemHeight + 32,
+            }),
+          }}
         />
       )}
 
       {/* 增强功能：显示渐进式加载的 "加载更多" 提示 */}
-      {isVirtualLoadingMore && (
+      {containerWidth > 100 && isVirtualLoadingMore && (
         <div className='flex justify-center items-center py-4'>
           <div className='animate-spin rounded-full h-6 w-6 border-b-2 border-green-500'></div>
           <span className='ml-2 text-sm text-gray-500 dark:text-gray-400'>
@@ -271,8 +346,8 @@ export const VirtualSearchGrid: React.FC<VirtualSearchGridProps> = ({
 
       {/* 增强功能：当所有已加载数据显示完毕且没有新数据流时，显示提示 */}
       {!hasMoreVirtualItems &&
-        !hasNextPage &&
-        totalItemCount > INITIAL_BATCH_SIZE && (
+        totalItemCount > INITIAL_BATCH_SIZE &&
+        containerWidth > 100 && (
           <div className='text-center py-4 text-sm text-gray-500 dark:text-gray-400'>
             已显示全部 {totalItemCount} 个结果
           </div>
