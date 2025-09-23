@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     );
 
     // 使用与管理员统计相同的逻辑
-    userCreatedAt = user?.createdAt || PROJECT_START_DATE;
+    userCreatedAt = user?.registeredAt || PROJECT_START_DATE;
 
     // 增强统计数据：添加注册天数和登录天数计算
     const registrationDays = calculateRegistrationDays(userCreatedAt);
