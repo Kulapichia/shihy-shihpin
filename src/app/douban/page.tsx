@@ -32,7 +32,7 @@ function DoubanPageClient() {
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- Start: Preserved and Added Hooks ---
-  const { columnCount, columnWidth, containerWidth } = useResponsiveGrid();
+  const { columnCount, itemWidth, containerWidth } = useResponsiveGrid();
   const { virtualScrollEnabled, setVirtualScrollEnabled } = useVirtualScroll();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingTriggerRef = useRef<HTMLDivElement>(null); // Ref for the trigger element in non-virtual mode
@@ -700,7 +700,7 @@ function DoubanPageClient() {
                     hasNextPage={hasMore}
                     loadNextPage={loadNextPage}
                     columnCount={columnCount}
-                    columnWidth={columnWidth}
+                    columnWidth={itemWidth}
                     containerWidth={containerWidth}
                     type={type}
                     primarySelection={primarySelection}
