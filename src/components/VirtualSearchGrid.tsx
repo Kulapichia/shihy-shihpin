@@ -19,15 +19,13 @@ const Grid = dynamic(
   }
 );
 
-// VirtualSearchGrid 组件的 Props 定义
-// 保持与父组件(search/page.tsx)的通信接口，同时加入 hasNextPage 用于流式加载判断
 interface VirtualSearchGridProps {
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
-  hasNextPage: boolean; // 保留：用于判断数据流是否仍在进行
+  hasNextPage: boolean;
   viewMode: 'agg' | 'all';
   searchQuery: string;
-  isLoading: boolean; // 新增：用于显示初始加载状态
+  isLoading: boolean;
   computeGroupStats: (group: SearchResult[]) => {
     douban_id?: number;
     episodes?: number;
@@ -36,12 +34,10 @@ interface VirtualSearchGridProps {
   getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
-// 渐进式加载配置
 const INITIAL_BATCH_SIZE = 20;
 const LOAD_MORE_BATCH_SIZE = 10;
-const LOAD_MORE_THRESHOLD = 5; // 距离底部还有5行时开始加载
+const LOAD_MORE_THRESHOLD = 5;
 
-// 主组件
 const VirtualSearchGrid = ({
   results,
   aggregatedResults,
@@ -53,15 +49,13 @@ const VirtualSearchGrid = ({
   getGroupRef,
 }: VirtualSearchGridProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  // 增强功能：使用 useResponsiveGrid 实现完全响应式布局
   const { columnCount, itemWidth, itemHeight, containerWidth } =
     useResponsiveGrid(containerRef);
 
-  // 保留功能：动态计算网格高度
   const [gridHeight, setGridHeight] = useState(0);
   useEffect(() => {
     const calculateHeight = () => {
-      const headerHeight = 280; // 估算的搜索页顶部选择器等的高度，可以根据实际情况调整
+      const headerHeight = 280;
       setGridHeight(Math.max(0, window.innerHeight - headerHeight));
     };
     calculateHeight();
@@ -69,27 +63,21 @@ const VirtualSearchGrid = ({
     return () => window.removeEventListener('resize', calculateHeight);
   }, []);
 
-  // 增强功能：渐进式加载状态
   const [visibleItemCount, setVisibleItemCount] = useState(INITIAL_BATCH_SIZE);
   const [isVirtualLoadingMore, setIsVirtualLoadingMore] = useState(false);
 
-  // 根据视图模式选择数据源
   const dataSource = viewMode === 'agg' ? aggregatedResults : results;
   const totalItemCount = dataSource.length;
 
-  // 实际显示的项目数量（考虑渐进式加载）
   const displayItemCount = Math.min(visibleItemCount, totalItemCount);
   const displayData = dataSource.slice(0, displayItemCount);
 
-  // 检查是否还有更多项目可以从已加载的数据中渲染
   const hasMoreVirtualItems = displayItemCount < totalItemCount;
 
-  // 当视图模式或数据源变化时，重置渐进式加载
   useEffect(() => {
     setVisibleItemCount(INITIAL_BATCH_SIZE);
   }, [viewMode, results, aggregatedResults]);
 
-  // 加载更多虚拟项目（从已有的 dataSource 中）
   const loadMoreVirtualItems = useCallback(() => {
     if (isVirtualLoadingMore || !hasMoreVirtualItems) return;
     setIsVirtualLoadingMore(true);
@@ -101,13 +89,11 @@ const VirtualSearchGrid = ({
     }, 100);
   }, [isVirtualLoadingMore, hasMoreVirtualItems, totalItemCount]);
 
-  // 保留功能：计算总项目数，如果数据仍在流式传输 (hasNextPage)，则增加一行骨架屏占位
   const itemCountWithPlaceholders = hasNextPage
     ? displayItemCount + columnCount
     : displayItemCount;
   const rowCount = Math.ceil(itemCountWithPlaceholders / columnCount);
 
-  // 保留功能：单个网格项的渲染组件，适配新版 react-window API
   const CellComponent = useCallback(({ columnIndex, rowIndex, style, data }: any) => {
     const {
       displayData: cellDisplayData,
@@ -121,13 +107,9 @@ const VirtualSearchGrid = ({
     } = data;
 
     const index = rowIndex * cellColumnCount + columnIndex;
-
-    // 为每个卡片增加一些内边距，避免它们紧贴在一起
     const adjustedStyle = { ...style, padding: '8px' };
 
-    // 判断当前索引是否为骨架屏占位
     if (index >= cellDisplayItemCount) {
-      // 只有在数据流还在进行时才显示骨架屏
       return cellHasNextPage ? (
         <div style={adjustedStyle}>
           <DoubanCardSkeleton />
@@ -136,9 +118,8 @@ const VirtualSearchGrid = ({
     }
 
     const item = cellDisplayData[index];
-    if (!item) return null; // 安全检查
+    if (!item) return null;
 
-    // 聚合视图
     if (cellViewMode === 'agg') {
       const [mapKey, group] = item as [string, SearchResult[]];
       const title = group[0]?.title || '';
@@ -167,10 +148,7 @@ const VirtualSearchGrid = ({
           />
         </div>
       );
-    }
-
-    // 全部视图
-    else {
+    } else {
       const searchItem = item as SearchResult;
       return (
         <div style={adjustedStyle}>
@@ -194,9 +172,8 @@ const VirtualSearchGrid = ({
         </div>
       );
     }
-  }, []); // 依赖项为空，因为所有数据都通过 itemData 传递
+  }, []);
 
-  // 在计算出有效高度或宽度前，显示加载状态
   if (gridHeight <= 0 || containerWidth <= 100) {
     return (
       <div className='flex justify-center items-center h-96'>
@@ -215,17 +192,13 @@ const VirtualSearchGrid = ({
         <div className='text-center text-gray-500 py-8'>未找到相关结果</div>
       ) : (
         <Grid
-          // 使用 key 确保在布局参数变化时强制重新渲染
           key={`search-grid-${containerWidth}-${columnCount}-${viewMode}`}
           className='hide-scrollbar'
           columnCount={columnCount}
-          columnWidth={itemWidth + 16} // 16px for padding (8px on each side)
+          columnWidth={itemWidth + 16}
           rowCount={rowCount}
-          rowHeight={itemHeight + 16} // 16px for padding
-          width={containerWidth}
-          style={{ height: gridHeight }} // 修正：height 属性移入 style 对象
+          rowHeight={itemHeight + 16}
           overscanCount={2}
-          // 2.1.1 新API：使用 cellComponent/cellProps
           cellComponent={CellComponent}
           cellProps={{
             displayData,
@@ -237,21 +210,14 @@ const VirtualSearchGrid = ({
             computeGroupStats,
             getGroupRef,
           }}
+          style={{
+            width: containerWidth, // 修正：移到 style 内
+            height: gridHeight,
+          }}
           onCellsRendered={(
-            visibleCells: {
-              rowStopIndex: number;
-              rowStartIndex: number;
-              columnStartIndex: number;
-              columnStopIndex: number;
-            },
-            allCells: {
-              rowStopIndex: number;
-              rowStartIndex: number;
-              columnStartIndex: number;
-              columnStopIndex: number;
-            }
+            visibleCells,
+            allCells
           ) => {
-            // 当滚动到底部附近时，触发渐进式加载
             if (
               visibleCells.rowStopIndex >=
               Math.ceil(displayItemCount / columnCount) - LOAD_MORE_THRESHOLD
