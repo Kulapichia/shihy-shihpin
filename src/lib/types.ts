@@ -134,3 +134,18 @@ export interface SkipConfig {
   intro_time: number; // 片头时间（秒）
   outro_time: number; // 片尾时间（秒）
 }
+
+// 短剧相关类型定义
+export interface ShortDramaItem {
+  id: number;
+  title: string;
+  cover: string;
+  category: string;
+  description: string;
+}
+
+export interface ShortDramaCategory {
+  type_id: number;
+  type_name: string;
+}
+
