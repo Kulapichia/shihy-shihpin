@@ -94,18 +94,19 @@ const VirtualSearchGrid = ({
     : displayItemCount;
   const rowCount = Math.ceil(itemCountWithPlaceholders / columnCount);
 
-  const CellComponent = useCallback(({ columnIndex, rowIndex, style, data }: any) => {
-    const {
-      displayData: cellDisplayData,
-      columnCount: cellColumnCount,
-      displayItemCount: cellDisplayItemCount,
-      hasNextPage: cellHasNextPage,
-      viewMode: cellViewMode,
-      searchQuery: cellSearchQuery,
-      computeGroupStats: cellComputeGroupStats,
-      getGroupRef: cellGetGroupRef,
-    } = data;
-
+  const CellComponent = useCallback(({ 
+    columnIndex, 
+    rowIndex, 
+    style, 
+    displayData: cellDisplayData,
+    columnCount: cellColumnCount,
+    displayItemCount: cellDisplayItemCount,
+    hasNextPage: cellHasNextPage,
+    viewMode: cellViewMode,
+    searchQuery: cellSearchQuery,
+    computeGroupStats: cellComputeGroupStats,
+    getGroupRef: cellGetGroupRef 
+  }: any) => {
     const index = rowIndex * cellColumnCount + columnIndex;
     const adjustedStyle = { ...style, padding: '8px' };
 
