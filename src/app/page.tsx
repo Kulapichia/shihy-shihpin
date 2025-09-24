@@ -18,6 +18,7 @@ import {
   subscribeToDataUpdates,
 } from '@/lib/db.client';
 import { getDoubanCategories } from '@/lib/douban.client';
+import { BangumiItemSchema } from '@/lib/schemas';
 import { DoubanItem } from '@/lib/types';
 
 import CapsuleSwitch from '@/components/CapsuleSwitch';
@@ -365,12 +366,22 @@ function HomeClient() {
                         const currentWeekday = weekdays[today.getDay()];
 
                         // 找到当前星期对应的番剧数据
-                        const todayAnimes =
+                        const rawTodayAnimes =
                           bangumiCalendarData.find(
                             (item) => item.weekday.en === currentWeekday
                           )?.items || [];
-
-                        return todayAnimes.map((anime, index) => (
+                        
+                        // 使用 Zod 安全解析和过滤数据
+                        const safeTodayAnimes = rawTodayAnimes.flatMap((anime: any) => {
+                          try {
+                            // 验证每一项数据，不符合格式的将被跳过
+                            return [BangumiItemSchema.parse(anime)];
+                          } catch (error) {
+                            console.error('Bangumi item validation failed, skipping:', anime, error);
+                            return []; // 验证失败，返回空数组，flatMap 会自动移除它
+                          }
+                        });
+                        return safeTodayAnimes.map((anime, index) => (
                           <div
                             key={`${anime.id}-${index}`}
                             className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
