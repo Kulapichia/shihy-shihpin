@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 
 import { GetBangumiCalendarData } from '@/lib/bangumi.client';
+import { BangumiItemSchema } from '@/lib/schemas';
 import {
   getDoubanCategories,
   getDoubanList,
@@ -297,10 +298,24 @@ function DoubanPageClient() {
           (item) => item.weekday.en === selectedWeekday
         );
         if (weekdayData) {
+          // 使用 Zod 安全解析和过滤数据
+          const safeItems = (weekdayData.items || []).flatMap((item: any) => {
+            try {
+              // 验证每一项数据，不符合格式的将被跳过
+              return [BangumiItemSchema.parse(item)];
+            } catch (error) {
+              console.error(
+                'Bangumi item validation failed, skipping:',
+                item,
+                error
+              );
+              return []; // 验证失败，返回空数组，flatMap 会自动移除它
+            }
+          });
           data = {
             code: 200,
             message: 'success',
-            list: weekdayData.items.map((item) => ({
+            list: safeItems.map((item) => ({
               id: item.id?.toString() || '',
               title: item.name_cn || item.name,
               poster:
