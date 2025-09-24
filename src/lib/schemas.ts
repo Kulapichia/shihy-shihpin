@@ -27,3 +27,21 @@ export const RawDoubanSubjectSchema = z.object({
     cover: z.string().optional(),
     rate: z.string().optional(),
 });
+
+// 为 Bangumi 日历 API 的原始 item 定义 Schema
+export const BangumiItemSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  name_cn: z.string().optional().default(''), // 确保 name_cn 是可选的
+  images: z.object({
+    large: z.string().optional(),
+    common: z.string().optional(),
+    medium: z.string().optional(),
+    small: z.string().optional(),
+    grid: z.string().optional(),
+  }).nullable().optional(), // images 对象本身可能是 null 或不存在
+  rating: z.object({
+    score: z.number().optional(),
+  }).nullable().optional(), // rating 对象本身可能是 null 或不存在
+  air_date: z.string().optional(),
+});
