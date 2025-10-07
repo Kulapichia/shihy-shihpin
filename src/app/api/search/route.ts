@@ -119,8 +119,8 @@ export async function GET(request: NextRequest) {
   const searchPromises = apiSites.map((site, index) => {
     console.log(`[Search API] Creating search promise for site ${index + 1}/${apiSites.length}: ${site.name} (${site.key})`);
     return Promise.race([
-      searchFromApi(site, query, page),
-      new Promise((_, reject) =>
+      searchFromApi(site, query),
+      new Promise<SearchResult[]>((_, reject) =>
         setTimeout(() => reject(new Error(`${site.name} timeout after 20s`)), 20000)
       ),
     ]).catch((err) => {
