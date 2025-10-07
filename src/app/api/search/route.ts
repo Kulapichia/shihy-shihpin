@@ -388,7 +388,8 @@ export async function GET(request: NextRequest) {
       const successResults = results
         .filter((result) => result.status === 'fulfilled')
         .map((result) => (result as PromiseFulfilledResult<any>).value);
-      flattenedResults = successResults.flatMap(res => res.results || []);
+      // [FIXED] 使用 .flat() 来展平数组的数组
+      flattenedResults = successResults.flat();
     }
     
     console.log('[Search API] Flattened results count:', flattenedResults.length);
