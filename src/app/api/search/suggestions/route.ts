@@ -77,7 +77,7 @@ async function generateSuggestions(
 
     realKeywords = Array.from(
       new Set<string>(
-        searchData.results
+        searchData
           .filter(
             (r: any) => {
               if (config.SiteConfig.DisableYellowFilter) {
