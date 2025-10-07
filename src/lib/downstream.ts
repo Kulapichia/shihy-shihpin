@@ -159,7 +159,8 @@ export async function searchFromApi(
     }
 
     // 尝试所有搜索变体，收集所有结果，然后选择最相关的
-    const allVariantResults: Array<{variant: string, results: SearchResult[], relevanceScore: number}> = [];
+    // [MODIFIED] 增加 pageCount 属性来存储每个变体的总页数
+    const allVariantResults: Array<{variant: string, results: SearchResult[], pageCount?: number, relevanceScore: number}> = [];
 
     for (const variant of searchVariants) {
       const apiUrl =
@@ -176,9 +177,11 @@ export async function searchFromApi(
           const relevanceScore = calculateRelevanceScore(query, variant, firstPageResult.results);
           console.log(`[DEBUG] 变体 "${variant}" 找到 ${firstPageResult.results.length} 个结果, 相关性分数: ${relevanceScore}`);
 
+          // [MODIFIED] 将 pageCount 也存入结果中
           allVariantResults.push({
             variant,
             results: firstPageResult.results,
+            pageCount: firstPageResult.pageCount,
             relevanceScore
           });
         } else {
@@ -203,7 +206,8 @@ export async function searchFromApi(
 
     results = bestResult.results;
     query = bestResult.variant; // 用于后续分页
-    pageCountFromFirst = 1; // 重置页数
+    // [MODIFIED] 从最佳结果中获取真实的总页数，而不是硬编码为1
+    pageCountFromFirst = bestResult.pageCount || 1;
     
     // 如果所有变体都没有结果，直接返回空数组
     if (results.length === 0) {
