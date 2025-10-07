@@ -336,24 +336,27 @@ export async function* searchFromAll(keyword: string) {
     const config = await getConfig();
     const sites = Object.values(config.SourceConfig).filter(s => !s.disabled);
 
-    const promises = sites.map(async (site) => {
-        // Step 1: Fetch the first page to get results and page count
-        const firstPageResult = await searchFromApi(site, keyword);
-        const allSiteResults = firstPageResult;
-        return allSiteResults;
-    });
-
+    // 使用 Promise.allSettled 来处理所有请求，无论成功或失败
+    const promises = sites.map(site => 
+        searchFromApi(site, keyword).catch(err => {
+            console.warn(`[Deep Search] Error searching ${site.name}:`, err.message);
+            return []; // 出错时返回空数组
+        })
+    );
+    
+    // 异步迭代器，等待一个请求完成后立即 yield 结果
     for (const p of promises) {
         try {
             const results = await p;
-            if (results.length > 0) {
+            if (results && results.length > 0) {
                 yield results;
             }
         } catch (error) {
-            // ignore
+            // 理论上不会进入这里，因为上面已经 catch
         }
     }
 }
+
 
 
 // 匹配 m3u8 链接的正则
