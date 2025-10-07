@@ -158,13 +158,12 @@ export async function GET(request: NextRequest) {
           // 添加超时控制
           const searchPromise = Promise.race([
             searchFromApi(site, query),
-            new Promise<{ results: any[] }>((_, reject) =>
+            new Promise<any[]>((_, reject) =>
               setTimeout(() => reject(new Error(`${site.name} timeout after 20s`)), 20000)
             ),
           ]);
 
-          const searchResult = (await searchPromise) as { results: any[] };
-          const results = searchResult?.results;
+          const results = (await searchPromise) as any[];
           // 增加一个判断，如果results不是一个数组，直接跳过处理
           if (!Array.isArray(results)) {
             console.warn(`[WS Search API] Invalid results from ${site.name}: expected array, got`, typeof results);
