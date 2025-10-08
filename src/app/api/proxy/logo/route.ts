@@ -35,14 +35,12 @@ const httpAgent = new http.Agent({
 // 清理过期缓存
 function cleanupExpiredCache() {
   const now = Date.now();
-  let cleanedCount = 0;
   
   // 使用 Array.from() 来避免迭代器问题
   const cacheEntries = Array.from(logoCache.entries());
   for (const [key, value] of cacheEntries) {
     if (now - value.timestamp > LOGO_CACHE_TTL) {
       logoCache.delete(key);
-      cleanedCount++;
     }
   }
   
@@ -51,7 +49,6 @@ function cleanupExpiredCache() {
     const entries = Array.from(logoCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
     const toDelete = entries.slice(0, entries.length - MAX_CACHE_SIZE);
     toDelete.forEach(([key]) => logoCache.delete(key));
-    cleanedCount += toDelete.length;
   }
 }
 
@@ -62,7 +59,7 @@ export async function OPTIONS(request: Request) {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, User-Agent, Referer',
+      'Access-Control-Allow-Headers': 'Content-Type, User-Agent, Referer, If-None-Match',
       'Access-Control-Max-Age': '86400',
     },
   });
@@ -116,8 +113,9 @@ export async function GET(request: Request) {
       agent: typeof window === 'undefined' ? agent : undefined,
     });
 
-    // 如果是 304 Not Modified，返回缓存的数据
     if (imageResponse.status === 304 && cached) {
+      cached.timestamp = Date.now(); // 更新时间戳
+      logoCache.set(cacheKey, cached);
       return new Response(cached.data, {
         headers: {
           'Content-Type': cached.contentType,
@@ -176,7 +174,7 @@ export async function GET(request: Request) {
 
     // 设置缓存头
     headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800, immutable'); // 缓存7天，且标记为不可变
+    headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800, immutable');
     headers.set('X-Cache', 'MISS');
     headers.set('Content-Length', imageData.byteLength.toString());
 
@@ -185,3 +183,12 @@ export async function GET(request: Request) {
       status: 200,
       headers,
     });
+  // 添加 catch 块来闭合 try
+  } catch (error) {
+    console.error('Failed to proxy logo:', error);
+    return NextResponse.json(
+      { error: 'Failed to proxy image' },
+      { status: 502 } // 502 Bad Gateway 更适合表示代理失败
+    );
+  }
+}
