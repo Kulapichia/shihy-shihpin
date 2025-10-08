@@ -258,7 +258,11 @@ function rewriteM3U8Content(
     // 处理 TS 片段 URL 和其他媒体文件
     if (line && !line.startsWith('#')) {
       const resolvedUrl = resolveUrl(baseUrl, line);
-      const proxyUrl = allowCORS
+      // 智能判断：只有当 allowCORS 为 true 且链接是 https 时，才允许直连。
+      // 否则，强制通过代理来解决 http 混合内容问题。
+      const isSafeDirectLink = allowCORS && resolvedUrl.startsWith('https://');
+      
+      const proxyUrl = isSafeDirectLink
         ? resolvedUrl
         : `${proxyBase}/segment?url=${encodeURIComponent(resolvedUrl)}&moontv-source=${source}`;
       rewrittenLines.push(proxyUrl);
