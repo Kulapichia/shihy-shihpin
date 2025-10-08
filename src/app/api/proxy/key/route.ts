@@ -45,7 +45,9 @@ export async function GET(request: Request) {
       'Connection': 'keep-alive',
     };
     
-    // --- 智能 Referer 策略 ---
+    let timeout = 30000; // 默认30秒超时
+
+    // --- 智能 Referer 与超时策略 ---
 
     try {
       const urlObject = new URL(decodedUrl);
@@ -66,6 +68,11 @@ export async function GET(request: Request) {
         // 通用策略：使用同域根路径
         requestHeaders['Referer'] = urlObject.origin + '/';
       }
+      const getTimeoutBySourceDomain = (domain: string): number => {
+        const knownSlowDomains = ['bvvvvvvv7f.com', 'dytt-music.com', 'high25-playback.com', 'ffzyread2.com'];
+        return knownSlowDomains.some(slow => domain.includes(slow)) ? 45000 : 30000;
+      };
+      timeout = getTimeoutBySourceDomain(domain);
     } catch {
       // URL解析失败时不设置Referer
       console.warn('Failed to parse URL for Referer:', decodedUrl);
@@ -74,7 +81,7 @@ export async function GET(request: Request) {
 
     const response = await fetch(decodedUrl, {
       headers: requestHeaders,
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(timeout),
     });
 
 
