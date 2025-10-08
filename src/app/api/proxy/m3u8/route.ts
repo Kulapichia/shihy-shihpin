@@ -106,7 +106,7 @@ export async function GET(request: Request) {
       cache: 'no-cache',
       redirect: 'follow',
       credentials: 'omit', // 避免跨域凭据问题
-      signal: AbortSignal.timeout(Math.min(timeout, 15000)),
+      signal: AbortSignal.timeout(timeout),
       headers: requestHeaders,
     });
 
