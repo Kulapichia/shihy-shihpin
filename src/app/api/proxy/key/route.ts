@@ -73,6 +73,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing url' }, { status: 400 });
   }
 
+  // --- 强制校验 moontv-source 参数 ---
+  if (!source) {
+    return NextResponse.json(
+      { error: 'Missing moontv-source parameter' },
+      { status: 400 }
+    );
+  }
+  
   const config = await getConfig();
   // --- 同时查找直播源和点播源 ---
   const liveSource = config.LiveConfig?.find((s: any) => s.key === source);
