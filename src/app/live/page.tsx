@@ -896,18 +896,23 @@ function LivePageClient() {
     hls.attachMedia(video);
     video.hls = hls;
 
-    hls.on(Hls.Events.ERROR, function (event: any, data: any) {
-      console.error('HLS Error:', event, data);
-
+    hls.on(Hls.Events.ERROR, function (event, data) {
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
+            console.error(
+              'HLS.js: fatal network error encountered, try to recover'
+            );
             hls.startLoad();
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
-            // hls.recoverMediaError();
+            console.error(
+              'HLS.js: fatal media error encountered, try to recover'
+            );
+            hls.recoverMediaError();
             break;
           default:
+            console.error('HLS.js: unrecoverable fatal error');
             hls.destroy();
             break;
         }
