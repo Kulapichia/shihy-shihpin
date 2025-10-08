@@ -1,10 +1,31 @@
 /* eslint-disable no-console,@typescript-eslint/no-explicit-any */
 
 import { NextResponse } from 'next/server';
+// --- 功能增强: 引入 http/https 模块以使用连接池 ---
+import * as https from 'https';
+import * as http from 'http';
 
 import { getConfig } from '@/lib/config';
 
 export const runtime = 'nodejs';
+
+// --- 功能增强: 引入高性能Node.js连接池 ---
+// 为分片请求设置更大的并发数和更长的超时
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 100,
+  maxFreeSockets: 20,
+  timeout: 75000, // 保持与您的超时策略一致
+  keepAliveMsecs: 30000,
+});
+
+const httpAgent = new http.Agent({
+  keepAlive: true,
+  maxSockets: 100,
+  maxFreeSockets: 20,
+  timeout: 75000, // 保持与您的超时策略一致
+  keepAliveMsecs: 30000,
+});
 
 export async function OPTIONS(request: Request) {
   return new Response(null, {
@@ -26,6 +47,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing url' }, { status: 400 });
   }
 
+  // --- 强制校验 moontv-source 参数 ---
+  if (!source) {
+    return NextResponse.json(
+      { error: 'Missing moontv-source parameter' },
+      { status: 400 }
+    );
+  }
+
   const config = await getConfig();
   // --- 同时查找直播源和点播源，以支持点播视频片段的代理 ---
   const liveSource = config.LiveConfig?.find((s: any) => s.key === source);
@@ -36,7 +65,8 @@ export async function GET(request: Request) {
   }
 
   // 优先使用直播源的UA，否则使用默认UA
-  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+  // --- 功能增强: 实现了您注释中想要的智能UA功能 ---
+  const ua = liveSource?.ua || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 
   // 优化: 智能超时策略
   const getTimeoutBySourceDomain = (domain: string): number => {
@@ -50,6 +80,10 @@ export async function GET(request: Request) {
 
   try {
     const decodedUrl = decodeURIComponent(url);
+
+    // --- 功能增强: 选择合适的agent以启用连接池 ---
+    const isHttps = decodedUrl.startsWith('https:');
+    const agent = isHttps ? httpsAgent : httpAgent;
 
     const requestHeaders: Record<string, string> = {
       'User-Agent': ua,
@@ -96,6 +130,9 @@ export async function GET(request: Request) {
     response = await fetch(decodedUrl, {
       headers: requestHeaders,
       signal: AbortSignal.timeout(timeout),
+      // --- 功能增强: 应用连接池 ---
+      // @ts-ignore - Node.js specific option for connection pooling
+      agent: typeof window === 'undefined' ? agent : undefined,
     });
 
 
@@ -211,9 +248,28 @@ export async function GET(request: Request) {
       }
     }
 
+    // --- 功能增强: 更详细的错误日志和状态码 ---
+    console.error('代理分片请求失败:', {
+        url: searchParams.get('url'),
+        error: error instanceof Error ? error.message : String(error),
+    });
+
+    let statusCode = 500;
+    let errorMessage = 'Failed to fetch segment';
+  
+    if (error instanceof Error) {
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        statusCode = 408; // Request Timeout
+        errorMessage = 'Segment request timeout';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        statusCode = 502; // Bad Gateway
+        errorMessage = 'Network error while fetching segment from source';
+      }
+    }
+
     return NextResponse.json(
-      { error: 'Failed to fetch segment' },
-      { status: 500 }
+      { error: errorMessage },
+      { status: statusCode }
     );
   }
 }
