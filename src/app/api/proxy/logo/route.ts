@@ -68,16 +68,16 @@ export async function OPTIONS(request: Request) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const imageUrl = searchParams.get('url');
-  const source = searchParams.get('moontv-source');
+  const source = searchParams.get('source');
 
   if (!imageUrl) {
     return NextResponse.json({ error: 'Missing image URL' }, { status: 400 });
   }
 
-  // --- 强制校验 moontv-source 参数 ---
+  // --- 强制校验 source 参数 ---
   if (!source) {
     return NextResponse.json(
-      { error: 'Missing moontv-source parameter' },
+      { error: 'Missing source parameter' },
       { status: 400 }
     );
   }  
