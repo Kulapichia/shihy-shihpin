@@ -2,12 +2,20 @@
 
 'use client';
 
-import Artplayer from 'artplayer';
 import Hls from 'hls.js';
-import { Heart, Radio, Tv } from 'lucide-react';
+import { Heart, Radio, RefreshCw, Search, Tv, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 
+import {
+  debounce,
+} from '@/lib/channel-search';
+import {
+  isMobile,
+  isTablet, 
+  isSafari,
+  devicePerformance
+} from '@/lib/utils';
 import {
   deleteFavorite,
   generateStorageKey,
