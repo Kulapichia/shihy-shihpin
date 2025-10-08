@@ -1,10 +1,57 @@
 /* eslint-disable no-console,@typescript-eslint/no-explicit-any */
 
 import { NextResponse } from 'next/server';
-
 import { getConfig } from '@/lib/config';
 
 export const runtime = 'nodejs';
+
+// --- HLS解密密钥代理与缓存 ---
+
+// Key 缓存管理
+const keyCache = new Map<string, { data: ArrayBuffer; timestamp: number; etag?: string }>();
+const KEY_CACHE_TTL = 300000; // 缓存5分钟
+const MAX_CACHE_SIZE = 200; // 最多缓存200个密钥
+
+// --- 高性能Node.js连接池 ---
+import * as https from 'https';
+import * as http from 'http';
+
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 30,
+  maxFreeSockets: 10,
+  timeout: 15000, // 连接超时
+  keepAliveMsecs: 30000,
+});
+
+const httpAgent = new http.Agent({
+  keepAlive: true,
+  maxSockets: 30,
+  maxFreeSockets: 10,
+  timeout: 15000, // 连接超时
+  keepAliveMsecs: 30000,
+});
+
+/**
+ * --- 精细的缓存管理 ---
+ * 清理过期的和多余的缓存条目
+ */
+function cleanupExpiredCache() {
+  const now = Date.now();
+  const cacheEntries = Array.from(keyCache.entries());
+  for (const [key, value] of cacheEntries) {
+    if (now - value.timestamp > KEY_CACHE_TTL) {
+      keyCache.delete(key);
+    }
+  }
+  // 如果清理后缓存仍然过大，则删除最老的条目
+  if (keyCache.size > MAX_CACHE_SIZE) {
+    const entries = Array.from(keyCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toDelete = entries.slice(0, entries.length - MAX_CACHE_SIZE);
+    toDelete.forEach(([key]) => keyCache.delete(key));
+  }
+}
+
 
 export async function OPTIONS(request: Request) {
   return new Response(null, {
@@ -12,7 +59,7 @@ export async function OPTIONS(request: Request) {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, User-Agent, Referer',
+      'Access-Control-Allow-Headers': 'Content-Type, User-Agent, Referer, If-None-Match',
       'Access-Control-Max-Age': '86400',
     },
   });
@@ -34,21 +81,47 @@ export async function GET(request: Request) {
   if (!liveSource && !vodSource) {
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }
-  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+  
+  // --- 智能User-Agent模拟 ---
+  const ua = liveSource?.ua || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+
+  const decodedUrl = decodeURIComponent(url);
+  const cacheKey = `${source}-${decodedUrl}`;
+  const ifNoneMatch = request.headers.get('If-None-Match');
+
+  // --- 内存高速缓存 (Map + TTL) ---
+  const cached = keyCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < KEY_CACHE_TTL) {
+    // --- ETag与304缓存验证 ---
+    if (ifNoneMatch && cached.etag && ifNoneMatch === cached.etag) {
+        return new Response(null, { status: 304 });
+    }
+    
+    return new Response(cached.data, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': `public, max-age=${Math.round(KEY_CACHE_TTL / 1000)}`,
+        'X-Cache': 'HIT',
+        'Content-Length': cached.data.byteLength.toString(),
+        ...(cached.etag && { 'ETag': cached.etag }),
+      },
+    });
+  }
 
   try {
-    const decodedUrl = decodeURIComponent(url);
+    const isHttps = decodedUrl.startsWith('https:');
+    const agent = isHttps ? httpsAgent : httpAgent;
     
     const requestHeaders: Record<string, string> = {
       'User-Agent': ua,
       'Accept': 'application/octet-stream, */*',
       'Connection': 'keep-alive',
+      // 如果有缓存（即使已过期），也带上ETag进行验证
+      ...(cached?.etag && { 'If-None-Match': cached.etag }),
     };
-    
-    let timeout = 30000; // 默认30秒超时
 
     // --- 智能 Referer 与超时策略 ---
-
     try {
       const urlObject = new URL(decodedUrl);
       const domain = urlObject.hostname;
@@ -68,11 +141,6 @@ export async function GET(request: Request) {
         // 通用策略：使用同域根路径
         requestHeaders['Referer'] = urlObject.origin + '/';
       }
-      const getTimeoutBySourceDomain = (domain: string): number => {
-        const knownSlowDomains = ['bvvvvvvv7f.com', 'dytt-music.com', 'high25-playback.com', 'ffzyread2.com'];
-        return knownSlowDomains.some(slow => domain.includes(slow)) ? 45000 : 30000;
-      };
-      timeout = getTimeoutBySourceDomain(domain);
     } catch {
       // URL解析失败时不设置Referer
       console.warn('Failed to parse URL for Referer:', decodedUrl);
@@ -81,28 +149,66 @@ export async function GET(request: Request) {
 
     const response = await fetch(decodedUrl, {
       headers: requestHeaders,
-      signal: AbortSignal.timeout(timeout),
+      signal: AbortSignal.timeout(10000), // 密钥文件很小，10秒超时足够
+      // @ts-ignore - Node.js specific option for connection pooling
+      agent: typeof window === 'undefined' ? agent : undefined,
     });
 
-
+    // --- ETag与304缓存验证 ---
+    if (response.status === 304 && cached) {
+      // 密钥未改变，更新缓存时间戳并返回旧数据
+      cached.timestamp = Date.now();
+      keyCache.set(cacheKey, cached);
+      return new Response(cached.data, {
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': `public, max-age=${Math.round(KEY_CACHE_TTL / 1000)}`,
+          'X-Cache': '304-HIT',
+          'Content-Length': cached.data.byteLength.toString(),
+          ...(cached.etag && { 'ETag': cached.etag }),
+        },
+      });
+    }
     
     if (!response.ok) {
       return NextResponse.json(
-        { error: 'Failed to fetch key' },
-        { status: 500 }
+        { error: `Failed to fetch key: ${response.statusText}` },
+        { status: response.status }
       );
     }
     const keyData = await response.arrayBuffer();
+    const etag = response.headers.get('ETag');
+
+    // 存入缓存
+    keyCache.set(cacheKey, { 
+      data: keyData, 
+      timestamp: Date.now(),
+      etag: etag || undefined
+    });
+
+    // 触发缓存清理
+    if (keyCache.size > MAX_CACHE_SIZE) {
+      cleanupExpiredCache();
+    }
+    
     const headers = new Headers();
     headers.set('Content-Type', 'application/octet-stream');
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    headers.set('Access-Control-Allow-Headers', 'Content-Type, User-Agent, Referer');
-    headers.set('Cache-Control', 'public, max-age=172800, immutable');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, User-Agent, Referer, If-None-Match');
+    headers.set('Cache-Control', `public, max-age=${Math.round(KEY_CACHE_TTL / 1000)}`);
+    headers.set('X-Cache', 'MISS');
     headers.set('Content-Length', keyData.byteLength.toString());
+    if (etag) {
+      headers.set('ETag', etag);
+    }
 
     return new Response(keyData, { headers });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return NextResponse.json({ error: 'Key request timeout' }, { status: 408 });
+    }
     return NextResponse.json({ error: 'Failed to fetch key' }, { status: 500 });
   }
 }
