@@ -432,41 +432,44 @@ export async function getDoubanList(
   
   switch (proxyType) {
     case 'cors-proxy-zwei':
-      result = await fetchDoubanList(params, 'https://ciao-cors.is-an.org/');
+      result = await fetchDoubanRecommends(params, 'https://ciao-cors.is-an.org/');
       break;
     case 'cmliussss-cdn-tencent':
-      result = await fetchDoubanList(params, '', true, false);
+      result = await fetchDoubanRecommends(params, '', true, false);
       break;
     case 'cmliussss-cdn-ali':
-      return fetchDoubanList(params, '', false, true);
+      result = await fetchDoubanRecommends(params, '', false, true);
+      break;
     case 'cors-anywhere':
-      return fetchDoubanList(params, 'https://cors-anywhere.com/');
+      result = await fetchDoubanRecommends(params, 'https://cors-anywhere.com/');
+      break;
     case 'custom':
-      return fetchDoubanList(params, proxyUrl);
+      result = await fetchDoubanRecommends(params, proxyUrl);
+      break;
     case 'direct':
     default:
       try {
         const response = await fetch(
-          `/api/douban?tag=${tag}&type=${type}&pageSize=${pageLimit}&pageStart=${pageStart}`
+          `/api/douban/recommends?kind=${kind}&limit=${pageLimit}&start=${pageStart}&category=${category}&format=${format}&region=${region}&year=${year}&platform=${platform}&sort=${sort}&label=${label}`
         );
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
         }
-        return await response.json();
+        result = await response.json();
       } catch (error) {
-        console.error(`获取豆瓣列表数据失败 (direct):`, error);
+        console.error(`获取豆瓣推荐数据失败 (direct):`, error);
         // 触发全局错误提示
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('globalError', {
-              detail: { message: `获取豆瓣列表 '${tag}' 失败` },
+              detail: { message: `获取豆瓣推荐 '${kind}' 失败` },
             })
           );
         }
-        return { code: 500, message: '获取失败', list: [] };
+        result = { code: 500, message: '获取失败', list: [] };
       }
+      break;
   }
-}
   
   // 保存到缓存
   if (result.code === 200) {
