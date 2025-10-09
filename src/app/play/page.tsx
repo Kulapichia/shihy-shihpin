@@ -21,6 +21,7 @@ import {
   saveSkipConfig,
   subscribeToDataUpdates,
 } from '@/lib/db.client';
+import { getBangumiDetails } from '@/lib/bangumi.client';
 import { getDoubanDetails } from '@/lib/douban.client';
 import { SearchResult } from '@/lib/types';
 import { getVideoResolutionFromM3u8, processImageUrl } from '@/lib/utils';
@@ -101,7 +102,9 @@ function PlayPageClient() {
   const [videoTitle, setVideoTitle] = useState(searchParams.get('title') || '');
   const [videoYear, setVideoYear] = useState(searchParams.get('year') || '');
   const [videoCover, setVideoCover] = useState('');
-  const [videoDoubanId, setVideoDoubanId] = useState(0);
+  const [videoDoubanId, setVideoDoubanId] = useState(
+    parseInt(searchParams.get('douban_id') || '0') || 0
+  );
   // 当前源和ID
   const [currentSource, setCurrentSource] = useState(
     searchParams.get('source') || ''
@@ -129,6 +132,7 @@ function PlayPageClient() {
   const videoYearRef = useRef(videoYear);
   const detailRef = useRef<SearchResult | null>(detail);
   const currentEpisodeIndexRef = useRef(currentEpisodeIndex);
+  const videoDoubanIdRef = useRef(videoDoubanId);
 
   // 同步最新值到 refs
   useEffect(() => {
@@ -138,6 +142,7 @@ function PlayPageClient() {
     currentEpisodeIndexRef.current = currentEpisodeIndex;
     videoTitleRef.current = videoTitle;
     videoYearRef.current = videoYear;
+    videoDoubanIdRef.current = videoDoubanId;
   }, [
     currentSource,
     currentId,
@@ -145,6 +150,7 @@ function PlayPageClient() {
     currentEpisodeIndex,
     videoTitle,
     videoYear,
+    videoDoubanId,
   ]);
 
   // 视频播放地址
@@ -206,7 +212,110 @@ function PlayPageClient() {
 
   // Wake Lock 相关
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  // 新增：电影、番剧详情和网盘搜索状态
+  const [movieDetails, setMovieDetails] = useState<any>(null);
+  const [loadingMovieDetails, setLoadingMovieDetails] = useState(false);
+  const [bangumiDetails, setBangumiDetails] = useState<any>(null);
+  const [loadingBangumiDetails, setLoadingBangumiDetails] = useState(false);
+  const [netdiskResults, setNetdiskResults] = useState<{ [key: string]: any[] } | null>(null);
+  const [netdiskLoading, setNetdiskLoading] = useState(false);
+  const [netdiskError, setNetdiskError] = useState<string | null>(null);
+  const [netdiskTotal, setNetdiskTotal] = useState(0);
 
+  /**
+   * 生成搜索查询的多种变体，提高搜索命中率
+   */
+  const generateSearchVariants = (originalQuery: string): string[] => {
+    const variants: string[] = [];
+    const trimmed = originalQuery.trim();
+    variants.push(trimmed);
+    const chinesePunctuationVariants = generateChinesePunctuationVariants(trimmed);
+    chinesePunctuationVariants.forEach(variant => {
+      if (!variants.includes(variant)) variants.push(variant);
+    });
+    if (trimmed.includes(' ')) {
+      const noSpaces = trimmed.replace(/\s+/g, '');
+      if (noSpaces !== trimmed) variants.push(noSpaces);
+      const normalizedSpaces = trimmed.replace(/\s+/g, ' ');
+      if (normalizedSpaces !== trimmed && !variants.includes(normalizedSpaces)) variants.push(normalizedSpaces);
+      const keywords = trimmed.split(/\s+/);
+      if (keywords.length >= 2) {
+        const mainKeyword = keywords[0];
+        const lastKeyword = keywords[keywords.length - 1];
+        if (/第|季|集|部|篇|章/.test(lastKeyword)) {
+          const combined = mainKeyword + lastKeyword;
+          if (!variants.includes(combined)) variants.push(combined);
+        }
+        const withColon = trimmed.replace(/\s+/g, '：');
+        if (!variants.includes(withColon)) variants.push(withColon);
+        const withEnglishColon = trimmed.replace(/\s+/g, ':');
+        if (!variants.includes(withEnglishColon)) variants.push(withEnglishColon);
+        const meaninglessWords = ['the', 'a', 'an', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by'];
+        if (!variants.includes(mainKeyword) && !meaninglessWords.includes(mainKeyword.toLowerCase()) && mainKeyword.length > 2) {
+          variants.push(mainKeyword);
+        }
+      }
+    }
+    return Array.from(new Set(variants));
+  };
+
+  /**
+   * 生成中文标点符号的搜索变体
+   */
+  const generateChinesePunctuationVariants = (query: string): string[] => {
+    const variants: string[] = [];
+    const chinesePunctuation = /[：；，。！？、""''（）【】《》]/;
+    if (!chinesePunctuation.test(query)) return variants;
+    if (query.includes('：')) {
+      const withSpace = query.replace(/：/g, ' ');
+      variants.push(withSpace);
+      const noColon = query.replace(/：/g, '');
+      variants.push(noColon);
+      const englishColon = query.replace(/：/g, ':');
+      variants.push(englishColon);
+      const beforeColon = query.split('：')[0].trim();
+      if (beforeColon && beforeColon !== query) variants.push(beforeColon);
+      const afterColon = query.split('：')[1]?.trim();
+      if (afterColon) variants.push(afterColon);
+    }
+    let cleanedQuery = query;
+    cleanedQuery = cleanedQuery.replace(/；/g, ';').replace(/，/g, ',').replace(/。/g, '.').replace(/！/g, '!').replace(/？/g, '?').replace(/"/g, '"').replace(/"/g, '"').replace(/'/g, "'").replace(/'/g, "'").replace(/（/g, '(').replace(/）/g, ')').replace(/【/g, '[').replace(/】/g, ']').replace(/《/g, '<').replace(/》/g, '>');
+    if (cleanedQuery !== query) variants.push(cleanedQuery);
+    const noPunctuation = query.replace(/[：；，。！？、""''（）【】《》:;,.!?"'()[\]<>]/g, '');
+    if (noPunctuation !== query && noPunctuation.trim()) variants.push(noPunctuation);
+    return variants;
+  };
+
+  // 检查是否包含查询中的所有关键词
+  const checkAllKeywordsMatch = (queryTitle: string, resultTitle: string): boolean => {
+    const queryWords = queryTitle.replace(/[^\w\s\u4e00-\u9fff]/g, '').split(/\s+/).filter(w => w.length > 0);
+    return queryWords.every(word => resultTitle.includes(word));
+  };
+
+  // 网盘搜索函数
+  const handleNetDiskSearch = async (query: string) => {
+    if (!query.trim()) return;
+    setNetdiskLoading(true);
+    setNetdiskError(null);
+    setNetdiskResults(null);
+    setNetdiskTotal(0);
+    try {
+      const response = await fetch(`/api/netdisk/search?q=${encodeURIComponent(query.trim())}`);
+      const data = await response.json();
+      if (data.success) {
+        setNetdiskResults(data.data.merged_by_type || {});
+        setNetdiskTotal(data.data.total || 0);
+        console.log(`网盘搜索完成: "${query}" - ${data.data.total || 0} 个结果`);
+      } else {
+        setNetdiskError(data.error || '网盘搜索失败');
+      }
+    } catch (error: any) {
+      console.error('网盘搜索请求失败:', error);
+      setNetdiskError('网盘搜索请求失败，请稍后重试');
+    } finally {
+      setNetdiskLoading(false);
+    }
+  };
   // 引入源健康状态缓存 (5分钟有效期)
   const sourceEvaluationCache = useRef(new Map<string, {
     quality: string;
@@ -939,7 +1048,43 @@ function PlayPageClient() {
           ? '🎬 正在获取视频详情...'
           : '🔍 正在搜索播放源...'
       );
-
+      let sourcesInfo: SearchResult[] = [];
+      
+      // 使用智能搜索变体获取全部源信息
+      console.log('开始智能搜索，原始查询:', searchTitle || videoTitle);
+      const searchVariants = generateSearchVariants((searchTitle || videoTitle).trim());
+      console.log('生成的搜索变体:', searchVariants);
+      
+      const allResults: SearchResult[] = [];
+      let bestResults: SearchResult[] = [];
+      
+      for (const variant of searchVariants) {
+        console.log('尝试搜索变体:', variant);
+        const response = await fetch(`/api/search?q=${encodeURIComponent(variant)}`);
+        if (!response.ok) {
+          console.warn(`搜索变体 "${variant}" 失败:`, response.statusText);
+          continue;
+        }
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          allResults.push(...data.results);
+          const filteredResults = data.results.filter((result: SearchResult) => {
+            const queryTitle = videoTitleRef.current.replaceAll(' ', '').toLowerCase();
+            const resultTitle = result.title.replaceAll(' ', '').toLowerCase();
+            const titleMatch = resultTitle.includes(queryTitle) || queryTitle.includes(resultTitle) || resultTitle.replace(/\d+|[：:]/g, '') === queryTitle.replace(/\d+|[：:]/g, '') || checkAllKeywordsMatch(queryTitle, resultTitle);
+            const yearMatch = videoYearRef.current ? result.year.toLowerCase() === videoYearRef.current.toLowerCase() : true;
+            const typeMatch = searchType ? (searchType === 'tv' && result.episodes.length > 1) || (searchType === 'movie' && result.episodes.length === 1) : true;
+            return titleMatch && yearMatch && typeMatch;
+          });
+          if (filteredResults.length > 0) {
+            console.log(`变体 "${variant}" 找到 ${filteredResults.length} 个精确匹配结果`);
+            bestResults = filteredResults;
+            break; 
+          }
+        }
+      }
+      
+      sourcesInfo = bestResults.length > 0 ? bestResults : allResults;
       let sourcesInfo = await fetchSourcesData(searchTitle || videoTitle);
       if (
         currentSource &&
@@ -949,6 +1094,10 @@ function PlayPageClient() {
         )
       ) {
         sourcesInfo = await fetchSourceDetail(currentSource, currentId);
+        const directDetail = await fetchSourceDetail(currentSource, currentId);
+        if (directDetail.length > 0) {
+          sourcesInfo.unshift(...directDetail);
+        }
       }
       if (sourcesInfo.length === 0) {
         setError('未找到匹配结果');
@@ -979,6 +1128,7 @@ function PlayPageClient() {
         const target = finalSources.find(
           (s) => s.source === currentSource && s.id === currentId
         );
+        const target = finalSources.find(s => s.source === currentSource && s.id === currentId);
         // 如果找到了就用它，如果因为过滤等原因找不到了，就用列表里最好的那个
         detailData = target || finalSources[0];
       } else {
@@ -992,7 +1142,7 @@ function PlayPageClient() {
         return;
       }
 
-      console.log(detailData.source, detailData.id);
+      console.log('选定的播放源:', detailData.source, detailData.id);
 
       setNeedPrefer(false);
       setCurrentSource(detailData.source);
@@ -1000,7 +1150,7 @@ function PlayPageClient() {
       setVideoYear(detailData.year);
       setVideoTitle(detailData.title || videoTitleRef.current);
       setVideoCover(detailData.poster);
-      setVideoDoubanId(detailData.douban_id || 0);
+      setVideoDoubanId(videoDoubanIdRef.current || detailData.douban_id || 0);
       setDetail(detailData);
       if (currentEpisodeIndex >= detailData.episodes.length) {
         setCurrentEpisodeIndex(0);
