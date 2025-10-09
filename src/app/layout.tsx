@@ -18,6 +18,7 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
   const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
   const config = await getConfig();
+  // --- Start: Default values from environment variables ---
   let siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTV';
   if (storageType !== 'localstorage') {
     siteName = config.SiteConfig.SiteName;
@@ -71,6 +72,8 @@ export default async function RootLayout({
     query: string;
   }[];
   let enableVirtualScroll = true; // 默认值
+  let netdiskSearch = false; // 新增：网盘搜索开关默认关闭
+  let homeCustomize: any = {}; // 新增：首页自定义配置默认为空对象
   if (storageType !== 'localstorage') {
     const config = await getConfig();
     siteName = config.SiteConfig.SiteName;
@@ -82,6 +85,16 @@ export default async function RootLayout({
     doubanImageProxy = config.SiteConfig.DoubanImageProxy;
     disableYellowFilter = config.SiteConfig.DisableYellowFilter;
     showContentFilter = config.SiteConfig.ShowContentFilter !== false;
+    doubanProxyType = siteConfig.DoubanProxyType || doubanProxyType;
+    doubanProxy = siteConfig.DoubanProxy || doubanProxy;
+    doubanImageProxyType = siteConfig.DoubanImageProxyType || doubanImageProxyType;
+    doubanImageProxy = siteConfig.DoubanImageProxy || doubanImageProxy;
+    disableYellowFilter = siteConfig.DisableYellowFilter ?? disableYellowFilter;
+    showContentFilter = siteConfig.ShowContentFilter !== false;
+    fluidSearch = siteConfig.FluidSearch ?? fluidSearch;
+    enableVirtualScroll = siteConfig.EnableVirtualScroll ?? enableVirtualScroll;
+    netdiskSearch = siteConfig.NetdiskSearch ?? netdiskSearch; // 新增：读取网盘搜索配置
+    homeCustomize = config.HomeCustomize || homeCustomize; // 新增：读取首页自定义配置    
     customCategories = config.CustomCategories.filter(
       (category) => !category.disabled
     ).map((category) => ({
@@ -92,7 +105,17 @@ export default async function RootLayout({
     fluidSearch = config.SiteConfig.FluidSearch;
     enableVirtualScroll = config.SiteConfig.EnableVirtualScroll ?? true;
   }
-
+    customCategories = customCats
+      .filter((category: any) => !category.disabled && category.name && category.query)
+      .map((category: any) => ({
+        name: category.name,
+        type: category.type,
+        query: category.query,
+      }));
+    } catch (error) {
+      console.error("Failed to load remote config, using default values:", error);
+      // 如果获取配置失败，将使用环境变量或代码中的默认值，确保网站能启动
+    }
   // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
   const runtimeConfig = {
     STORAGE_TYPE: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage',
@@ -105,6 +128,8 @@ export default async function RootLayout({
     CUSTOM_CATEGORIES: customCategories,
     FLUID_SEARCH: fluidSearch,
     ENABLE_VIRTUAL_SCROLL: enableVirtualScroll,
+    NETDISK_SEARCH: netdiskSearch, // 新增：注入网盘搜索配置
+    HOME_CUSTOMIZE: homeCustomize, // 新增：注入首页自定义配置
   };
 
   return (
