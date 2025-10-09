@@ -624,6 +624,7 @@ export async function getDoubanRecommends(
           );
         }
         return { code: 500, message: '获取失败', list: [] };
+      }
   }
   
   // 保存到缓存
