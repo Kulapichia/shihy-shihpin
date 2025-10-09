@@ -42,10 +42,14 @@ export async function fetchVideoDetail({
   }
 
   // 调用 /api/detail 接口
-  const detail = await getDetailFromApi(apiSite, id);
-  if (!detail) {
-    throw new Error('获取视频详情失败');
+  try {
+    const detail = await getDetailFromApi(apiSite, id);
+    // getDetailFromApi 内部在失败时会抛出错误，因此如果执行到这里，detail 一定是有效的
+    return detail;
+  } catch (error) {
+    console.error(`[fetchVideoDetail] 直接获取详情失败 (source: ${source}, id: ${id}):`, error);
+    // 抛出一个更具体的错误，以便上层可以根据需要处理或显示给用户
+    throw new Error(`从源 [${apiSite.name}] 获取详情失败，该源可能暂时不可用。`);
   }
-
-  return detail;
 }
+
