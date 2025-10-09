@@ -21,7 +21,7 @@ import {
   saveSkipConfig,
   subscribeToDataUpdates,
 } from '@/lib/db.client';
-import { getBangumiDetails } from '@/lib/bangumi.client';
+
 import { getDoubanDetails } from '@/lib/douban.client';
 import { SearchResult } from '@/lib/types';
 import { getVideoResolutionFromM3u8, processImageUrl } from '@/lib/utils';
@@ -1085,7 +1085,9 @@ function PlayPageClient() {
       }
       
       sourcesInfo = bestResults.length > 0 ? bestResults : allResults;
-      let sourcesInfo = await fetchSourcesData(searchTitle || videoTitle);
+      if (sourcesInfo.length === 0) {
+        sourcesInfo = await fetchSourcesData(searchTitle || videoTitle);
+      }
       if (
         currentSource &&
         currentId &&
@@ -1128,7 +1130,7 @@ function PlayPageClient() {
         const target = finalSources.find(
           (s) => s.source === currentSource && s.id === currentId
         );
-        const target = finalSources.find(s => s.source === currentSource && s.id === currentId);
+
         // 如果找到了就用它，如果因为过滤等原因找不到了，就用列表里最好的那个
         detailData = target || finalSources[0];
       } else {
