@@ -84,6 +84,12 @@ export interface IStorage {
   // 数据清理相关
   clearAllData(): Promise<void>;
 
+  // 通用缓存相关
+  getCache(key: string): Promise<any | null>;
+  setCache(key: string, data: any, expireSeconds?: number): Promise<void>;
+  deleteCache(key: string): Promise<void>;
+  clearExpiredCache(prefix?: string): Promise<void>;
+
   // 注册相关方法
   createPendingUser(username: string, password: string): Promise<void>;
   getPendingUsers(): Promise<PendingUser[]>;
@@ -148,4 +154,3 @@ export interface ShortDramaCategory {
   type_id: number;
   type_name: string;
 }
-
