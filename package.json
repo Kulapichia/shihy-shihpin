@@ -30,7 +30,6 @@
     "@types/crypto-js": "^4.2.2",
     "@upstash/redis": "^1.25.0",
     "@vidstack/react": "^1.12.13",
-    "@ducanh2912/next-pwa": "^10.2.9",
     "artplayer": "^5.3.0",
     "artplayer-plugin-danmuku": "^5.2.0",
     "hls.js": "^1.6.13",
@@ -39,7 +38,6 @@
     "crypto-js": "^4.2.0",
     "framer-motion": "^12.18.1",
     "he": "^1.2.0",
-    "hls.js": "^1.6.10",
     "lucide-react": "^0.438.0",
     "media-icons": "^1.1.5",
     "next": "^14.2.23",
@@ -54,7 +52,6 @@
     "redis": "^4.6.7",
     "swiper": "^11.2.8",
     "tailwind-merge": "^2.6.0",
-    "undici": "^6.19.2",
     "vidstack": "^0.6.15",
     "zod": "^3.24.1"
   },
