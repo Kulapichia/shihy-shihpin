@@ -81,6 +81,7 @@ export default async function RootLayout({
     try {
       const config = await getConfig();
       const siteConfig = config.SiteConfig || {};
+      const adminConfig = config.AdminConfig || {};
 
       siteName = siteConfig.SiteName || siteName;
       announcement = siteConfig.Announcement || announcement;
@@ -93,10 +94,11 @@ export default async function RootLayout({
       fluidSearch = siteConfig.FluidSearch ?? fluidSearch;
       enableVirtualScroll = siteConfig.EnableVirtualScroll ?? enableVirtualScroll;
       netdiskSearch = siteConfig.NetdiskSearch ?? netdiskSearch;
-      homeCustomize = config.HomeCustomize || homeCustomize;
+      homeCustomize = adminConfig.HomeCustomize || homeCustomize;
       
       if (config.CustomCategories) {
         customCategories = config.CustomCategories
+
           .filter((category: any) => !category.disabled && category.name && category.query)
           .map((category: any) => ({
             name: category.name,
