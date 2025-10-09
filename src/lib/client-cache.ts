@@ -91,7 +91,7 @@ export const ClientCache = {
     try {
       // 清理 IndexedDB
       const allKeys = await db.clientCache.toCollection().keys();
-      const keysToDelete = allKeys.filter(key => 
+      const keysToDelete = allKeys.filter((key: any) => 
         typeof key === 'string' && key.startsWith(prefix)
       );
       
