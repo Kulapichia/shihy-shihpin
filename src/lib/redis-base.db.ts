@@ -155,12 +155,14 @@ export function createRedisClient(
 // 抽象基类，包含所有通用的Redis操作逻辑
 export abstract class BaseRedisStorage implements IStorage {
   protected client: RedisClientType;
+  protected config: RedisConnectionConfig;
   protected withRetry: <T>(
     operation: () => Promise<T>,
     maxRetries?: number
   ) => Promise<T>;
 
   constructor(config: RedisConnectionConfig, globalSymbol: symbol) {
+    this.config = config;
     this.client = createRedisClient(config, globalSymbol);
     this.withRetry = createRetryWrapper(config.clientName, () => this.client);
   }
@@ -488,6 +490,72 @@ export abstract class BaseRedisStorage implements IStorage {
     } catch (error) {
       console.error('清空数据失败:', error);
       throw new Error('清空数据失败');
+    }
+  }
+
+  // ---------- 通用缓存方法 ----------
+  private cacheKey(key: string) {
+    return `cache:${key}`;
+  }
+
+  async getCache(key: string): Promise<any | null> {
+    try {
+      const val = await this.withRetry(() => this.client.get(this.cacheKey(key)));
+      if (!val) return null;
+
+      // 智能处理返回值：兼容不同Redis客户端的行为
+      if (typeof val === 'string') {
+        // 检查是否是HTML错误页面
+        if (val.trim().startsWith('<!DOCTYPE') || val.trim().startsWith('<html')) {
+          console.error(`${this.config.clientName} returned HTML instead of JSON. Connection issue detected.`);
+          return null;
+        }
+
+        try {
+          return JSON.parse(val);
+        } catch (parseError) {
+          console.warn(`${this.config.clientName} JSON解析失败，返回原字符串 (key: ${key}):`, parseError);
+          return val; // 解析失败返回原字符串
+        }
+      } else {
+        // 某些Redis客户端可能直接返回解析后的对象
+        return val;
+      }
+    } catch (error: any) {
+      console.error(`${this.config.clientName} getCache error (key: ${key}):`, error);
+      return null;
+    }
+  }
+
+  async setCache(key: string, data: any, expireSeconds?: number): Promise<void> {
+    try {
+      const cacheKey = this.cacheKey(key);
+      const value = JSON.stringify(data);
+
+      if (expireSeconds) {
+        await this.withRetry(() => this.client.setEx(cacheKey, expireSeconds, value));
+      } else {
+        await this.withRetry(() => this.client.set(cacheKey, value));
+      }
+    } catch (error) {
+      console.error(`${this.config.clientName} setCache error (key: ${key}):`, error);
+      throw error; // 重新抛出错误以便上层处理
+    }
+  }
+
+  async deleteCache(key: string): Promise<void> {
+    await this.withRetry(() => this.client.del(this.cacheKey(key)));
+  }
+
+  async clearExpiredCache(prefix?: string): Promise<void> {
+    // Redis的TTL机制会自动清理过期数据，这里主要用于手动清理
+    // 可以根据需要实现特定前缀的缓存清理
+    const pattern = prefix ? `cache:${prefix}*` : 'cache:*';
+    const keys = await this.withRetry(() => this.client.keys(pattern));
+
+    if (keys.length > 0) {
+      await this.withRetry(() => this.client.del(keys));
+      console.log(`Cleared ${keys.length} cache entries with pattern: ${pattern}`);
     }
   }
 
