@@ -25,6 +25,7 @@ export interface SiteConfig {
     ShowContentFilter?: boolean;
     FluidSearch: boolean;
     EnableVirtualScroll?: boolean;
+    NetdiskSearch?: boolean;
     // 智能审核字段
       IntelligentFilter: {
         enabled: boolean;
@@ -82,6 +83,7 @@ export interface AdminConfig {
     AutoUpdate: boolean;
     LastCheck: string;
   };
+  HomeCustomize?: any;
   ConfigFile: string;
   SiteConfig: SiteConfig;
   UserConfig: {
