@@ -11,17 +11,23 @@ import { GlobalErrorIndicator } from '../components/GlobalErrorIndicator';
 import { SiteProvider } from '../components/SiteProvider';
 import { ThemeProvider } from '../components/ThemeProvider';
 import { VirtualScrollProvider } from '../components/VirtualScrollProvider';
+
 const inter = Inter({ subsets: ['latin'] });
 export const dynamic = 'force-dynamic';
 
 // 动态生成 metadata，支持配置更新后的标题变化
 export async function generateMetadata(): Promise<Metadata> {
   const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
-  const config = await getConfig();
-  // --- Start: Default values from environment variables ---
   let siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTV';
+
   if (storageType !== 'localstorage') {
-    siteName = config.SiteConfig.SiteName;
+    try {
+      const config = await getConfig();
+      siteName = config.SiteConfig.SiteName;
+    } catch (error) {
+      console.error("Failed to load remote config for metadata, using default site name:", error);
+      // 如果获取配置失败，使用环境变量中的默认值
+    }
   }
 
   return {
@@ -51,11 +57,11 @@ export default async function RootLayout({
 }) {
   const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
 
+  // --- Start: Default values from environment variables ---
   let siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTV';
   let announcement =
     process.env.ANNOUNCEMENT ||
     '本网站仅提供影视信息搜索服务，所有内容均来自第三方网站。本站不存储任何视频资源，不对任何内容的准确性、合法性、完整性负责。';
-
   let doubanProxyType =
     process.env.NEXT_PUBLIC_DOUBAN_PROXY_TYPE || 'cmliussss-cdn-tencent';
   let doubanProxy = process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
@@ -66,56 +72,44 @@ export default async function RootLayout({
     process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
   let fluidSearch = process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false';
   let showContentFilter = false;
-  let customCategories = [] as {
-    name: string;
-    type: 'movie' | 'tv';
-    query: string;
-  }[];
-  let enableVirtualScroll = true; // 默认值
-  let netdiskSearch = false; // 新增：网盘搜索开关默认关闭
-  let homeCustomize: any = {}; // 新增：首页自定义配置默认为空对象
-  if (storageType !== 'localstorage') {
-    const config = await getConfig();
-    siteName = config.SiteConfig.SiteName;
-    announcement = config.SiteConfig.Announcement;
+  let customCategories: { name: string; type: 'movie' | 'tv'; query: string; }[] = [];
+  let enableVirtualScroll = true;
+  let netdiskSearch = false;
+  let homeCustomize: any = {};
 
-    doubanProxyType = config.SiteConfig.DoubanProxyType;
-    doubanProxy = config.SiteConfig.DoubanProxy;
-    doubanImageProxyType = config.SiteConfig.DoubanImageProxyType;
-    doubanImageProxy = config.SiteConfig.DoubanImageProxy;
-    disableYellowFilter = config.SiteConfig.DisableYellowFilter;
-    showContentFilter = config.SiteConfig.ShowContentFilter !== false;
-    doubanProxyType = siteConfig.DoubanProxyType || doubanProxyType;
-    doubanProxy = siteConfig.DoubanProxy || doubanProxy;
-    doubanImageProxyType = siteConfig.DoubanImageProxyType || doubanImageProxyType;
-    doubanImageProxy = siteConfig.DoubanImageProxy || doubanImageProxy;
-    disableYellowFilter = siteConfig.DisableYellowFilter ?? disableYellowFilter;
-    showContentFilter = siteConfig.ShowContentFilter !== false;
-    fluidSearch = siteConfig.FluidSearch ?? fluidSearch;
-    enableVirtualScroll = siteConfig.EnableVirtualScroll ?? enableVirtualScroll;
-    netdiskSearch = siteConfig.NetdiskSearch ?? netdiskSearch; // 新增：读取网盘搜索配置
-    homeCustomize = config.HomeCustomize || homeCustomize; // 新增：读取首页自定义配置    
-    customCategories = config.CustomCategories.filter(
-      (category) => !category.disabled
-    ).map((category) => ({
-      name: category.name || '',
-      type: category.type,
-      query: category.query,
-    }));
-    fluidSearch = config.SiteConfig.FluidSearch;
-    enableVirtualScroll = config.SiteConfig.EnableVirtualScroll ?? true;
-  }
-    customCategories = customCats
-      .filter((category: any) => !category.disabled && category.name && category.query)
-      .map((category: any) => ({
-        name: category.name,
-        type: category.type,
-        query: category.query,
-      }));
+  if (storageType !== 'localstorage') {
+    try {
+      const config = await getConfig();
+      const siteConfig = config.SiteConfig || {};
+
+      siteName = siteConfig.SiteName || siteName;
+      announcement = siteConfig.Announcement || announcement;
+      doubanProxyType = siteConfig.DoubanProxyType || doubanProxyType;
+      doubanProxy = siteConfig.DoubanProxy || doubanProxy;
+      doubanImageProxyType = siteConfig.DoubanImageProxyType || doubanImageProxyType;
+      doubanImageProxy = siteConfig.DoubanImageProxy || doubanImageProxy;
+      disableYellowFilter = siteConfig.DisableYellowFilter ?? disableYellowFilter;
+      showContentFilter = siteConfig.ShowContentFilter !== false;
+      fluidSearch = siteConfig.FluidSearch ?? fluidSearch;
+      enableVirtualScroll = siteConfig.EnableVirtualScroll ?? enableVirtualScroll;
+      netdiskSearch = siteConfig.NetdiskSearch ?? netdiskSearch;
+      homeCustomize = config.HomeCustomize || homeCustomize;
+      
+      if (config.CustomCategories) {
+        customCategories = config.CustomCategories
+          .filter((category: any) => !category.disabled && category.name && category.query)
+          .map((category: any) => ({
+            name: category.name,
+            type: category.type,
+            query: category.query,
+          }));
+      }
     } catch (error) {
       console.error("Failed to load remote config, using default values:", error);
       // 如果获取配置失败，将使用环境变量或代码中的默认值，确保网站能启动
     }
+  }
+
   // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
   const runtimeConfig = {
     STORAGE_TYPE: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage',
@@ -128,8 +122,8 @@ export default async function RootLayout({
     CUSTOM_CATEGORIES: customCategories,
     FLUID_SEARCH: fluidSearch,
     ENABLE_VIRTUAL_SCROLL: enableVirtualScroll,
-    NETDISK_SEARCH: netdiskSearch, // 新增：注入网盘搜索配置
-    HOME_CUSTOMIZE: homeCustomize, // 新增：注入首页自定义配置
+    NETDISK_SEARCH: netdiskSearch,
+    HOME_CUSTOMIZE: homeCustomize,
   };
 
   return (
