@@ -361,41 +361,50 @@ export async function getDoubanCategories(
   params: DoubanCategoriesParams
 ): Promise<DoubanResult> {
   const { kind, category, type, pageLimit = 20, pageStart = 0 } = params;
+  
+  // 检查缓存
+  const cacheKey = getCacheKey('categories', { kind, category, type, pageLimit, pageStart });
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    console.log(`豆瓣分类缓存命中: ${kind}/${category}/${type}`);
+    return cached;
+  }
+  
   const { proxyType, proxyUrl } = getDoubanProxyConfig();
+  let result: DoubanResult;
+  
   switch (proxyType) {
     case 'cors-proxy-zwei':
-      return fetchDoubanCategories(params, 'https://ciao-cors.is-an.org/');
+      result = await fetchDoubanCategories(params, 'https://ciao-cors.is-an.org/');
+      break;
     case 'cmliussss-cdn-tencent':
-      return fetchDoubanCategories(params, '', true, false);
+      result = await fetchDoubanCategories(params, '', true, false);
+      break;
     case 'cmliussss-cdn-ali':
-      return fetchDoubanCategories(params, '', false, true);
+      result = await fetchDoubanCategories(params, '', false, true);
+      break;
     case 'cors-anywhere':
-      return fetchDoubanCategories(params, 'https://cors-anywhere.com/');
+      result = await fetchDoubanCategories(params, 'https://cors-anywhere.com/');
+      break;
     case 'custom':
-      return fetchDoubanCategories(params, proxyUrl);
+      result = await fetchDoubanCategories(params, proxyUrl);
+      break;
     case 'direct':
     default:
-      try {
-        const response = await fetch(
-          `/api/douban/categories?kind=${kind}&category=${category}&type=${type}&limit=${pageLimit}&start=${pageStart}`
-        );
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        return await response.json();
-      } catch (error) {
-        console.error(`获取豆瓣分类数据失败 (direct):`, error);
-        // 触发全局错误提示
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('globalError', {
-              detail: { message: `获取豆瓣分类 '${category}' 失败` },
-            })
-          );
-        }
-        return { code: 500, message: '获取失败', list: [] };
-      }
+      const response = await fetch(
+        `/api/douban/categories?kind=${kind}&category=${category}&type=${type}&limit=${pageLimit}&start=${pageStart}`
+      );
+      result = await response.json();
+      break;
   }
+  
+  // 保存到缓存
+  if (result.code === 200) {
+    await setCache(cacheKey, result, DOUBAN_CACHE_EXPIRE.categories);
+    console.log(`豆瓣分类已缓存: ${kind}/${category}/${type}`);
+  }
+  
+  return result;
 }
 
 interface DoubanListParams {
@@ -409,12 +418,25 @@ export async function getDoubanList(
   params: DoubanListParams
 ): Promise<DoubanResult> {
   const { tag, type, pageLimit = 20, pageStart = 0 } = params;
+  
+  // 检查缓存
+  const cacheKey = getCacheKey('lists', { tag, type, pageLimit, pageStart });
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    console.log(`豆瓣列表缓存命中: ${type}/${tag}/${pageStart}`);
+    return cached;
+  }
+  
   const { proxyType, proxyUrl } = getDoubanProxyConfig();
+  let result: DoubanResult;
+  
   switch (proxyType) {
     case 'cors-proxy-zwei':
-      return fetchDoubanList(params, 'https://ciao-cors.is-an.org/');
+      result = await fetchDoubanList(params, 'https://ciao-cors.is-an.org/');
+      break;
     case 'cmliussss-cdn-tencent':
-      return fetchDoubanList(params, '', true, false);
+      result = await fetchDoubanList(params, '', true, false);
+      break;
     case 'cmliussss-cdn-ali':
       return fetchDoubanList(params, '', false, true);
     case 'cors-anywhere':
@@ -444,6 +466,15 @@ export async function getDoubanList(
         return { code: 500, message: '获取失败', list: [] };
       }
   }
+}
+  
+  // 保存到缓存
+  if (result.code === 200) {
+    await setCache(cacheKey, result, DOUBAN_CACHE_EXPIRE.lists);
+    console.log(`豆瓣列表已缓存: ${type}/${tag}/${pageStart}`);
+  }
+  
+  return result;
 }
 
 export async function fetchDoubanList(
@@ -544,7 +575,20 @@ export async function getDoubanRecommends(
     platform,
     sort,
   } = params;
+  
+  // 检查缓存
+  const cacheKey = getCacheKey('recommends', { 
+    kind, pageLimit, pageStart, category, format, label, region, year, platform, sort 
+  });
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    console.log(`豆瓣推荐缓存命中: ${kind}/${category || 'all'}`);
+    return cached;
+  }
+  
   const { proxyType, proxyUrl } = getDoubanProxyConfig();
+  let result: DoubanResult;
+  
   switch (proxyType) {
     case 'cors-proxy-zwei':
       return fetchDoubanRecommends(params, 'https://ciao-cors.is-an.org/');
@@ -577,8 +621,15 @@ export async function getDoubanRecommends(
           );
         }
         return { code: 500, message: '获取失败', list: [] };
-      }
   }
+  
+  // 保存到缓存
+  if (result.code === 200) {
+    await setCache(cacheKey, result, DOUBAN_CACHE_EXPIRE.recommends);
+    console.log(`豆瓣推荐已缓存: ${kind}/${category || 'all'}`);
+  }
+  
+  return result;
 }
 
 async function fetchDoubanRecommends(
@@ -685,5 +736,179 @@ async function fetchDoubanRecommends(
     };
   } catch (error) {
     throw new Error(`获取豆瓣推荐数据失败: ${(error as Error).message}`);
+  }
+}
+/**
+ * 获取豆瓣影片详细信息
+ */
+export async function getDoubanDetails(id: string): Promise<{
+  code: number;
+  message: string;
+  data?: {
+    id: string;
+    title: string;
+    poster: string;
+    rate: string;
+    year: string;
+    directors?: string[];
+    screenwriters?: string[];
+    cast?: string[];
+    genres?: string[];
+    countries?: string[];
+    languages?: string[];
+    episodes?: number;
+    episode_length?: number;
+    first_aired?: string;
+    plot_summary?: string;
+  };
+}> {
+  // 检查缓存
+  const cacheKey = getCacheKey('details', { id });
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    console.log(`豆瓣详情缓存命中: ${id}`);
+    return cached;
+  }
+  
+  try {
+    const response = await fetch(`/api/douban/details?id=${id}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    // 保存到缓存
+    if (result.code === 200) {
+      await setCache(cacheKey, result, DOUBAN_CACHE_EXPIRE.details);
+      console.log(`豆瓣详情已缓存: ${id}`);
+    }
+    
+    return result;
+  } catch (error) {
+    return {
+      code: 500,
+      message: `获取豆瓣详情失败: ${(error as Error).message}`,
+    };
+  }
+}
+
+/**
+ * 按演员名字搜索相关电影/电视剧
+ */
+interface DoubanActorSearchParams {
+  actorName: string;
+  type?: 'movie' | 'tv';
+  pageLimit?: number;
+  pageStart?: number;
+}
+
+export async function getDoubanActorMovies(
+  params: DoubanActorSearchParams
+): Promise<DoubanResult> {
+  const { actorName, type = 'movie', pageLimit = 20, pageStart = 0 } = params;
+
+  // 验证参数
+  if (!actorName?.trim()) {
+    throw new Error('演员名字不能为空');
+  }
+
+  // 检查缓存
+  const cacheKey = getCacheKey('actor', { actorName, type, pageLimit, pageStart });
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    console.log(`豆瓣演员搜索缓存命中: ${actorName}/${type}`);
+    return cached;
+  }
+
+  try {
+    // 使用豆瓣搜索API
+    const searchUrl = `https://search.douban.com/movie/subject_search?search_text=${encodeURIComponent(actorName.trim())}`;
+
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Referer': 'https://www.douban.com/',
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const html = await response.text();
+
+    // 解析HTML中的JSON数据
+    const dataMatch = html.match(/window\.__DATA__\s*=\s*({.*?});/s);
+    if (!dataMatch) {
+      throw new Error('无法解析搜索结果数据');
+    }
+
+    const searchData = JSON.parse(dataMatch[1]);
+    const items = searchData.items || [];
+
+    // 过滤掉第一个结果（通常是演员本人的资料页）和不相关的结果
+    let filteredItems = items.slice(1).filter((item: any) => {
+      // 过滤掉书籍等非影视内容
+      const abstract = item.abstract || '';
+      const isBook = abstract.includes('出版') || abstract.includes('页数') || item.url?.includes('/book/');
+      const isPerson = item.url?.includes('/celebrity/');
+      return !isBook && !isPerson;
+    });
+
+    // 按类型过滤
+    if (type === 'movie') {
+      filteredItems = filteredItems.filter((item: any) => {
+        const abstract = item.abstract || '';
+        return !abstract.includes('季') && !abstract.includes('集') && !abstract.includes('剧集');
+      });
+    } else if (type === 'tv') {
+      filteredItems = filteredItems.filter((item: any) => {
+        const abstract = item.abstract || '';
+        return abstract.includes('季') || abstract.includes('集') || abstract.includes('剧集') || abstract.includes('电视');
+      });
+    }
+
+    // 分页处理
+    const startIndex = pageStart;
+    const endIndex = startIndex + pageLimit;
+    const paginatedItems = filteredItems.slice(startIndex, endIndex);
+
+    // 转换数据格式
+    const list: DoubanItem[] = paginatedItems.map((item: any) => {
+      // 从abstract中提取年份
+      const yearMatch = item.abstract?.match(/(\d{4})/);
+      const year = yearMatch ? yearMatch[1] : '';
+
+      return {
+        id: item.id?.toString() || '',
+        title: item.title || '',
+        poster: item.cover_url || '',
+        rate: item.rating?.value ? item.rating.value.toFixed(1) : '',
+        year: year
+      };
+    });
+
+    const result = {
+      code: 200,
+      message: '获取成功',
+      list: list
+    };
+
+    // 保存到缓存
+    await setCache(cacheKey, result, DOUBAN_CACHE_EXPIRE.lists);
+    console.log(`豆瓣演员搜索已缓存: ${actorName}/${type}，找到 ${list.length} 个结果`);
+
+    return result;
+  } catch (error) {
+    console.error(`搜索演员 ${actorName} 失败:`, error);
+    return {
+      code: 500,
+      message: `搜索演员 ${actorName} 失败: ${(error as Error).message}`,
+      list: []
+    };
   }
 }
