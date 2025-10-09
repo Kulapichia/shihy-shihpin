@@ -368,6 +368,61 @@ export class UpstashRedisStorage implements IStorage {
     }
   }
 
+  // ---------- 通用缓存方法 ----------
+  private cacheKey(key: string) {
+    return `cache:${key}`;
+  }
+
+  async getCache(key: string): Promise<any | null> {
+    try {
+      const val = await withRetry(() => this.client.get(this.cacheKey(key)));
+      if (!val) return null;
+      
+      // 智能处理返回值：Upstash 可能返回字符串或已解析的对象
+      if (typeof val === 'string') {
+        try {
+          return JSON.parse(val);
+        } catch (parseError) {
+          console.warn(`JSON解析失败，返回原字符串 (key: ${key}):`, parseError);
+          return val; // 解析失败返回原字符串
+        }
+      } else {
+        // Upstash 可能直接返回解析后的对象
+        return val;
+      }
+    } catch (error) {
+      console.error(`Upstash getCache error (key: ${key}):`, error);
+      return null;
+    }
+  }
+
+  async setCache(key: string, data: any, expireSeconds?: number): Promise<void> {
+    const cacheKey = this.cacheKey(key);
+    const value = JSON.stringify(data);
+    
+    if (expireSeconds) {
+      await withRetry(() => this.client.setex(cacheKey, expireSeconds, value));
+    } else {
+      await withRetry(() => this.client.set(cacheKey, value));
+    }
+  }
+
+  async deleteCache(key: string): Promise<void> {
+    await withRetry(() => this.client.del(this.cacheKey(key)));
+  }
+
+  async clearExpiredCache(prefix?: string): Promise<void> {
+    // Upstash的TTL机制会自动清理过期数据，这里主要用于手动清理
+    // 可以根据需要实现特定前缀的缓存清理
+    const pattern = prefix ? `cache:${prefix}*` : 'cache:*';
+    const keys = await withRetry(() => this.client.keys(pattern));
+
+    if (keys.length > 0) {
+      await withRetry(() => this.client.del(...keys));
+      console.log(`Cleared ${keys.length} cache entries with pattern: ${pattern}`);
+    }
+  }
+
   // ---------- 注册相关方法 ----------
   private pendingUsersKey() {
     return 'admin:pending_users';
