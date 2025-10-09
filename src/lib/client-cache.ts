@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
+'use client';
 
 import { db } from './db.client';
 
@@ -91,10 +92,10 @@ export const ClientCache = {
     try {
       // 清理 IndexedDB
       const allKeys = await db.clientCache.toCollection().keys();
-      const keysToDelete = allKeys.filter((key: any) => 
+      const keysToDelete = allKeys.filter((key: any) =>
         typeof key === 'string' && key.startsWith(prefix)
       );
-      
+
       for (const key of keysToDelete) {
         const entry = await db.clientCache.get(key);
         if (entry && now > entry.expiresAt) {
