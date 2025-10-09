@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console,no-case-declarations */
-
+'use client';
 import { ClientCache } from './client-cache';
 import { DoubanItem, DoubanResult } from './types';
 
