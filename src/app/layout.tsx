@@ -81,7 +81,7 @@ export default async function RootLayout({
     try {
       const config = await getConfig();
       const siteConfig = config.SiteConfig || {};
-      const adminConfig = config.AdminConfig || {};
+      const adminConfig = config || {};
 
       siteName = siteConfig.SiteName || siteName;
       announcement = siteConfig.Announcement || announcement;
