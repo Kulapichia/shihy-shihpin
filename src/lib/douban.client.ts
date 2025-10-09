@@ -418,7 +418,7 @@ export async function getDoubanList(
   params: DoubanListParams
 ): Promise<DoubanResult> {
   const { tag, type, pageLimit = 20, pageStart = 0 } = params;
-  
+
   // 检查缓存
   const cacheKey = getCacheKey('lists', { tag, type, pageLimit, pageStart });
   const cached = await getCache(cacheKey);
@@ -426,43 +426,43 @@ export async function getDoubanList(
     console.log(`豆瓣列表缓存命中: ${type}/${tag}/${pageStart}`);
     return cached;
   }
-  
+
   const { proxyType, proxyUrl } = getDoubanProxyConfig();
   let result: DoubanResult;
-  
+
   switch (proxyType) {
     case 'cors-proxy-zwei':
-      result = await fetchDoubanRecommends(params, 'https://ciao-cors.is-an.org/');
+      result = await fetchDoubanList(params, 'https://ciao-cors.is-an.org/');
       break;
     case 'cmliussss-cdn-tencent':
-      result = await fetchDoubanRecommends(params, '', true, false);
+      result = await fetchDoubanList(params, '', true, false);
       break;
     case 'cmliussss-cdn-ali':
-      result = await fetchDoubanRecommends(params, '', false, true);
+      result = await fetchDoubanList(params, '', false, true);
       break;
     case 'cors-anywhere':
-      result = await fetchDoubanRecommends(params, 'https://cors-anywhere.com/');
+      result = await fetchDoubanList(params, 'https://cors-anywhere.com/');
       break;
     case 'custom':
-      result = await fetchDoubanRecommends(params, proxyUrl);
+      result = await fetchDoubanList(params, proxyUrl);
       break;
     case 'direct':
     default:
       try {
         const response = await fetch(
-          `/api/douban/recommends?kind=${kind}&limit=${pageLimit}&start=${pageStart}&category=${category}&format=${format}&region=${region}&year=${year}&platform=${platform}&sort=${sort}&label=${label}`
+          `/api/douban/list?type=${type}&tag=${tag}&limit=${pageLimit}&start=${pageStart}`
         );
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
         }
         result = await response.json();
       } catch (error) {
-        console.error(`获取豆瓣推荐数据失败 (direct):`, error);
+        console.error(`获取豆瓣列表数据失败 (direct):`, error);
         // 触发全局错误提示
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('globalError', {
-              detail: { message: `获取豆瓣推荐 '${kind}' 失败` },
+              detail: { message: `获取豆瓣列表 '${tag}' 失败` },
             })
           );
         }
@@ -470,13 +470,13 @@ export async function getDoubanList(
       }
       break;
   }
-  
+
   // 保存到缓存
   if (result.code === 200) {
     await setCache(cacheKey, result, DOUBAN_CACHE_EXPIRE.lists);
     console.log(`豆瓣列表已缓存: ${type}/${tag}/${pageStart}`);
   }
-  
+
   return result;
 }
 
@@ -594,15 +594,20 @@ export async function getDoubanRecommends(
   
   switch (proxyType) {
     case 'cors-proxy-zwei':
-      return fetchDoubanRecommends(params, 'https://ciao-cors.is-an.org/');
+      result = await fetchDoubanRecommends(params, 'https://ciao-cors.is-an.org/');
+      break;
     case 'cmliussss-cdn-tencent':
-      return fetchDoubanRecommends(params, '', true, false);
+      result = await fetchDoubanRecommends(params, '', true, false);
+      break;
     case 'cmliussss-cdn-ali':
-      return fetchDoubanRecommends(params, '', false, true);
+      result = await fetchDoubanRecommends(params, '', false, true);
+      break;
     case 'cors-anywhere':
-      return fetchDoubanRecommends(params, 'https://cors-anywhere.com/');
+      result = await fetchDoubanRecommends(params, 'https://cors-anywhere.com/');
+      break;
     case 'custom':
-      return fetchDoubanRecommends(params, proxyUrl);
+      result = await fetchDoubanRecommends(params, proxyUrl);
+      break;
     case 'direct':
     default:
       try {
@@ -612,7 +617,7 @@ export async function getDoubanRecommends(
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
         }
-        return await response.json();
+        result = await response.json();
       } catch (error) {
         console.error(`获取豆瓣推荐数据失败 (direct):`, error);
         // 触发全局错误提示
@@ -623,8 +628,9 @@ export async function getDoubanRecommends(
             })
           );
         }
-        return { code: 500, message: '获取失败', list: [] };
+        result = { code: 500, message: '获取失败', list: [] };
       }
+      break;
   }
   
   // 保存到缓存
@@ -635,6 +641,7 @@ export async function getDoubanRecommends(
   
   return result;
 }
+
 
 async function fetchDoubanRecommends(
   params: DoubanRecommendsParams,
