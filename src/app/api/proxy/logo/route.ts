@@ -52,6 +52,26 @@ function cleanupExpiredCache() {
   }
 }
 
+// 检测图片格式和大小
+function validateImageResponse(contentType: string | null, contentLength: number): { isValid: boolean; reason?: string } {
+  if (!contentType) {
+    return { isValid: true }; // 允许没有 content-type 的响应
+  }
+  
+  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon'];
+  const isValidType = validTypes.some(type => contentType.toLowerCase().includes(type));
+  
+  if (!isValidType) {
+    return { isValid: false, reason: `Invalid content type: ${contentType}` };
+  }
+  
+  // 限制图片大小为 5MB
+  if (contentLength > 5 * 1024 * 1024) {
+    return { isValid: false, reason: `Image too large: ${contentLength} bytes` };
+  }
+  
+  return { isValid: true };
+}
 
 export async function OPTIONS(request: Request) {
   return new Response(null, {
@@ -142,9 +162,17 @@ export async function GET(request: Request) {
       );
     }
     
-    const contentType = imageResponse.headers.get('content-type');
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    const contentLength = parseInt(imageResponse.headers.get('content-length') || '0', 10);
     const etag = imageResponse.headers.get('ETag');
-
+    // 验证图片
+    const validation = validateImageResponse(contentType, contentLength);
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { error: validation.reason },
+        { status: 400 }
+      );
+    }
     if (!imageResponse.body) {
       return NextResponse.json(
         { error: 'Image response has no body' },
@@ -172,12 +200,22 @@ export async function GET(request: Request) {
 
     // 创建响应头
     const headers = new Headers();
+    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD');
+    headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800, immutable'); // 7天缓存
+    headers.set('X-Cache', 'MISS');
+    headers.set('Content-Length', imageData.byteLength.toString());
+    headers.set('Vary', 'Accept-Encoding');
     if (contentType) {
       headers.set('Content-Type', contentType);
     }
     
     if (etag) {
       headers.set('ETag', etag);
+    } else {
+      // 生成简单的 ETag
+      const hash = Buffer.from(decodedUrl).toString('base64').slice(0, 16);
+      headers.set('ETag', `"${hash}"`);
     }
 
     // 设置缓存头
@@ -194,9 +232,14 @@ export async function GET(request: Request) {
   // 添加 catch 块来闭合 try
   } catch (error) {
     console.error('Failed to proxy logo:', error);
-    return NextResponse.json(
-      { error: 'Failed to proxy image' },
-      { status: 502 } // 502 Bad Gateway 更适合表示代理失败
-    );
+    let statusCode = 502; // Bad Gateway
+    let errorMessage = 'Failed to proxy image';
+    if (error instanceof Error) {
+        if (error.name === 'AbortError' || error.message.includes('timeout')) {
+            statusCode = 408;
+            errorMessage = 'Image request timeout';
+        }
+    }
+    return NextResponse.json({ error: errorMessage }, { status: statusCode });
   }
 }
