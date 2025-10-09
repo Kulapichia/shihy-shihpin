@@ -39,8 +39,11 @@ importers:
         specifier: ^1.12.13
         version: 1.12.13(@types/react@18.3.23)(react@18.3.1)
       artplayer:
-        specifier: ^5.2.5
-        version: 5.2.5
+        specifier: ^5.3.0
+        version: 5.3.0
+      artplayer-plugin-danmuku:
+        specifier: ^5.2.0
+        version: 5.2.0
       bs58:
         specifier: ^6.0.0
         version: 6.0.0
@@ -57,8 +60,8 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0
       hls.js:
-        specifier: ^1.6.10
-        version: 1.6.10
+        specifier: ^1.6.13
+        version: 1.6.13
       lucide-react:
         specifier: ^0.438.0
         version: 0.438.0(react@18.3.1)
@@ -84,8 +87,8 @@ importers:
         specifier: ^5.4.0
         version: 5.5.0(react@18.3.1)
       react-window:
-        specifier: ^2.1.1
-        version: 2.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^2.2.0
+        version: 2.2.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-window-infinite-loader:
         specifier: ^1.0.10
         version: 1.0.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1176,28 +1179,24 @@ packages:
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@next/swc-linux-arm64-musl@14.2.30':
     resolution: {integrity: sha512-8GkNA+sLclQyxgzCDs2/2GSwBc92QLMrmYAmoP2xehe5MUKBLB2cgo34Yu242L1siSkwQkiV4YLdCnjwc/Micw==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@next/swc-linux-x64-gnu@14.2.30':
     resolution: {integrity: sha512-8Ly7okjssLuBoe8qaRCcjGtcMsv79hwzn/63wNeIkzJVFVX06h5S737XNr7DZwlsbTBDOyI6qbL2BJB5n6TV/w==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@next/swc-linux-x64-musl@14.2.30':
     resolution: {integrity: sha512-dBmV1lLNeX4mR7uI7KNVHsGQU+OgTG5RGFPi3tBJpsKPvOPtg9poyav/BYWrB3GPQL4dW5YGGgalwZ79WukbKQ==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@next/swc-win32-arm64-msvc@14.2.30':
     resolution: {integrity: sha512-6MMHi2Qc1Gkq+4YLXAgbYslE1f9zMGBikKMdmQRHXjkGPot1JY3n5/Qrbg40Uvbi8//wYnydPnyvNhI1DMUW1g==}
@@ -1751,49 +1750,41 @@ packages:
     resolution: {integrity: sha512-vdqBh911wc5awE2bX2zx3eflbyv8U9xbE/jVKAm425eRoOVv/VseGZsqi3A3SykckSpF4wSROkbQPvbQFn8EsA==}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-arm64-musl@1.9.0':
     resolution: {integrity: sha512-/8JFZ/SnuDr1lLEVsxsuVwrsGquTvT51RZGvyDB/dOK3oYK2UqeXzgeyq6Otp8FZXQcEYqJwxb9v+gtdXn03eQ==}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@unrs/resolver-binding-linux-ppc64-gnu@1.9.0':
     resolution: {integrity: sha512-FkJjybtrl+rajTw4loI3L6YqSOpeZfDls4SstL/5lsP2bka9TiHUjgMBjygeZEis1oC8LfJTS8FSgpKPaQx2tQ==}
     cpu: [ppc64]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-riscv64-gnu@1.9.0':
     resolution: {integrity: sha512-w/NZfHNeDusbqSZ8r/hp8iL4S39h4+vQMc9/vvzuIKMWKppyUGKm3IST0Qv0aOZ1rzIbl9SrDeIqK86ZpUK37w==}
     cpu: [riscv64]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-riscv64-musl@1.9.0':
     resolution: {integrity: sha512-bEPBosut8/8KQbUixPry8zg/fOzVOWyvwzOfz0C0Rw6dp+wIBseyiHKjkcSyZKv/98edrbMknBaMNJfA/UEdqw==}
     cpu: [riscv64]
     os: [linux]
-    libc: [musl]
 
   '@unrs/resolver-binding-linux-s390x-gnu@1.9.0':
     resolution: {integrity: sha512-LDtMT7moE3gK753gG4pc31AAqGUC86j3AplaFusc717EUGF9ZFJ356sdQzzZzkBk1XzMdxFyZ4f/i35NKM/lFA==}
     cpu: [s390x]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-x64-gnu@1.9.0':
     resolution: {integrity: sha512-WmFd5KINHIXj8o1mPaT8QRjA9HgSXhN1gl9Da4IZihARihEnOylu4co7i/yeaIpcfsI6sYs33cNZKyHYDh0lrA==}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@unrs/resolver-binding-linux-x64-musl@1.9.0':
     resolution: {integrity: sha512-CYuXbANW+WgzVRIl8/QvZmDaZxrqvOldOwlbUjIM4pQ46FJ0W5cinJ/Ghwa/Ng1ZPMJMk1VFdsD/XwmCGIXBWg==}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@unrs/resolver-binding-wasm32-wasi@1.9.0':
     resolution: {integrity: sha512-6Rp2WH0OoitMYR57Z6VE8Y6corX8C6QEMWLgOV6qXiJIeZ1F9WGXY/yQ8yDC4iTraotyLOeJ2Asea0urWj2fKQ==}
@@ -2060,8 +2051,11 @@ packages:
     resolution: {integrity: sha512-3duEwti880xqi4eAMN8AyR4a0ByT90zoYdLlevfrvU43vb0YZwZVfxOgxWrLXXXpyugL0hNZc9G6BiB5B3nUug==}
     engines: {node: '>=8'}
 
-  artplayer@5.2.5:
-    resolution: {integrity: sha512-Ogym5rvkAJ4VLncM4Apl3TJ/a/ozM3csvY4IKuuMR++hUmEZgj/HaGsNonwx8r56nsqiZYE7O4vS1HFZl+NBSg==}
+  artplayer-plugin-danmuku@5.2.0:
+    resolution: {integrity: sha512-iHHSGEc0J+gl7imX4nmLqqC7LXmv8xeGf2lUevhhyUCoiCRZplecpKQICHjErVb1Yqyp1xCy6Sp8eYN+EpFWFw==}
+
+  artplayer@5.3.0:
+    resolution: {integrity: sha512-yExO39MpEg4P+bxgChxx1eJfiUPE4q1QQRLCmqGhlsj+ANuaoEkR8hF93LdI5ZyrAcIbJkuEndxEiUoKobifDw==}
 
   assert@2.0.0:
     resolution: {integrity: sha512-se5Cd+js9dXJnu6Ag2JFc00t+HmHOen+8Q+L7O9zI0PqQXr20uk2J0XQqMxZEeo5U50o8Nvmmx7dZrl+Ufr35A==}
@@ -3152,8 +3146,8 @@ packages:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
 
-  hls.js@1.6.10:
-    resolution: {integrity: sha512-16XHorwFNh+hYazYxDNXBLEm5aRoU+oxMX6qVnkbGH3hJil4xLav3/M6NH92VkD1qSOGKXeSm+5unuawPXK6OQ==}
+  hls.js@1.6.13:
+    resolution: {integrity: sha512-hNEzjZNHf5bFrUNvdS4/1RjIanuJ6szpWNfTaX5I6WfGynWXGT7K/YQLYtemSvFExzeMdgdE4SsyVLJbd5PcZA==}
 
   hosted-git-info@2.8.9:
     resolution: {integrity: sha512-mxIDAb9Lsm6DoOJ7xH+5+X4y1LU/4Hi50L9C5sIswK3JzULS4bwk1FvjdBgvYR4bzT4tuUQiC15FE2f5HbLvYw==}
@@ -4410,8 +4404,8 @@ packages:
       react: ^15.3.0 || ^16.0.0-alpha || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^15.3.0 || ^16.0.0-alpha || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  react-window@2.1.1:
-    resolution: {integrity: sha512-Wx5yHri8G1nFxImnJRkEEKtRTnG3cWaqknUJyYvgisQtl1mw/d8LQmLXfuKxpn2dY8IwDn5mCIuxm2NVyIvgVQ==}
+  react-window@2.2.0:
+    resolution: {integrity: sha512-Y2L7yonHq6K1pQA2P98wT5QdIsEcjBTB7T8o6Mub12hH9eYppXoYu6vgClmcjlh3zfNcW2UrXiJJJqDxUY7GVw==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -7236,7 +7230,7 @@ snapshots:
 
   '@types/react-window@2.0.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      react-window: 2.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react-window: 2.2.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     transitivePeerDependencies:
       - react
       - react-dom
@@ -7700,7 +7694,9 @@ snapshots:
 
   arrify@2.0.1: {}
 
-  artplayer@5.2.5:
+  artplayer-plugin-danmuku@5.2.0: {}
+
+  artplayer@5.3.0:
     dependencies:
       option-validator: 2.0.6
 
@@ -8976,7 +8972,7 @@ snapshots:
 
   he@1.2.0: {}
 
-  hls.js@1.6.10: {}
+  hls.js@1.6.13: {}
 
   hosted-git-info@2.8.9: {}
 
@@ -10438,7 +10434,7 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
-  react-window@2.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  react-window@2.2.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
