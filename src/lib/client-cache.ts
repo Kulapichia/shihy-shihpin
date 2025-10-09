@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 'use client';
 
-import { db } from './db.client';
-
 // 定义缓存条目接口
 interface CacheEntry {
   key: string;
@@ -33,7 +31,8 @@ export const ClientCache = {
       expiresAt: getExpiresAt(expireSeconds),
     };
     try {
-      // 优先使用 IndexedDB
+      // 优先使用 IndexedDB (动态导入)
+      const { db } = await import('./db.client');
       await db.clientCache.put(entry);
     } catch (e) {
       console.warn('IndexedDB set failed, falling back to localStorage:', e);
@@ -53,7 +52,8 @@ export const ClientCache = {
    */
   async get(key: string): Promise<any | null> {
     try {
-      // 优先从 IndexedDB 获取
+      // 优先从 IndexedDB 获取 (动态导入)
+      const { db } = await import('./db.client');
       const entry = await db.clientCache.get(key);
       if (entry) {
         if (Date.now() <= entry.expiresAt) {
@@ -90,7 +90,8 @@ export const ClientCache = {
   async clearExpired(prefix: string): Promise<void> {
     const now = Date.now();
     try {
-      // 清理 IndexedDB
+      // 清理 IndexedDB (动态导入)
+      const { db } = await import('./db.client');
       const allKeys = await db.clientCache.toCollection().keys();
       const keysToDelete = allKeys.filter((key: any) =>
         typeof key === 'string' && key.startsWith(prefix)
