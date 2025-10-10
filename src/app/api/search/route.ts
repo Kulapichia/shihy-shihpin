@@ -437,32 +437,42 @@ export async function GET(request: NextRequest) {
 
       const moderatedResults = [];
       for (const batch of batches) {
-        const batchPromises = batch.map(async (item) => {
-          // 如果服务已熔断，则直接放行
-          if (isServiceDown) {
-            console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item to pass directly.`);
-            return item;
-          }
+          const batchPromises = batch.map(async (item) => {
+            try {
+              // 如果服务已熔断，则直接放行
+              if (isServiceDown) {
+                console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item to pass directly.`);
+                return item;
+              }
 
-          const moderationResult = await moderateImage(item.poster, config);
-          
-          if (moderationResult.decision === 'error') {
-            failureCount++;
-            console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
-          } else {
-            // 任何一次成功都应立即重置失败计数，表明服务已恢复
-            failureCount = 0;
-          }
+              const moderationResult = await moderateImage(item.poster, config);
+              
+              if (moderationResult.decision === 'error') {
+                failureCount++;
+                console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
+              } else {
+                // 任何一次成功都应立即重置失败计数，表明服务已恢复
+                failureCount = 0;
+              }
 
-          // 检查是否达到熔断阈值
-          if (failureCount >= failureThreshold) {
-            isServiceDown = true;
-            console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
-          }
+              // 检查是否达到熔断阈值
+              if (failureCount >= failureThreshold) {
+                isServiceDown = true;
+                console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
+              }
 
-          // 策略：失败时放行 (当审核出错或审核通过时，都保留)
-          return moderationResult.decision !== 'block' ? item : null;
-        });
+              // 策略：失败时放行 (当审核出错或审核通过时，都保留)
+              return moderationResult.decision !== 'block' ? item : null;
+            } catch (modError) {
+              console.error('[AI Filter DEBUG] Unhandled exception in moderation process, allowing item to pass:', {
+                title: item.title,
+                poster: item.poster,
+                error: modError instanceof Error ? modError.message : String(modError),
+              });
+              return item; // 容错：审核过程意外失败时，默认放行
+            }
+          });
+
         
         const batchResults = await Promise.all(batchPromises);
         moderatedResults.push(...batchResults);
