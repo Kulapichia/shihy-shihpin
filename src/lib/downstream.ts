@@ -94,10 +94,9 @@ async function searchWithCache(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      // [FIXED] 移除 403 Forbidden 状态的负缓存，以允许系统在下次请求时重试
-      // if (response.status === 403) {
-      //   setCachedSearchPage(apiSite.key, query, page, 'forbidden', []);
-      // }
+      if (response.status === 403) {
+        setCachedSearchPage(apiSite.key, query, page, 'forbidden', []);
+      }
       return { results: [] };
     }
 
@@ -153,10 +152,10 @@ async function searchWithCache(
       error?.code === 20 ||
       error?.message?.includes('aborted');
     
-    // [FIXED] 移除超时状态的负缓存，以允许系统在下次请求时重试
-    // if (aborted) {
-    //   setCachedSearchPage(apiSite.key, query, page, 'timeout', []);
-    // }
+
+    if (aborted) {
+      setCachedSearchPage(apiSite.key, query, page, 'timeout', []);
+    }
     return { results: [] };
   }
 }
