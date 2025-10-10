@@ -190,13 +190,16 @@ export async function GET(request: Request) {
     });
   
     // 根据错误类型返回不同的状态码
-    let statusCode = 502; // Bad Gateway 作为默认值
+    let statusCode = 502; // Bad Gateway 作为默认值，比 500 更贴切
     let errorMessage = '代理 M3U8 文件失败';
   
     if (error instanceof Error) {
       if (error.name === 'AbortError' || error.message.includes('timeout')) {
         statusCode = 504; // Gateway Timeout 更精确
         errorMessage = '源服务器请求超时';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        statusCode = 502; // Bad Gateway
+        errorMessage = '从源服务器获取 M3U8 时发生网络错误';
       }
     }
   
