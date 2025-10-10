@@ -539,36 +539,37 @@ export async function getDetailFromApi(
   apiSite: ApiSite,
   id: string
 ): Promise<SearchResult> {
-  if (apiSite.detail) {
-    return handleSpecialSourceDetail(id, apiSite);
-  }
+  try {
+    if (apiSite.detail) {
+      return handleSpecialSourceDetail(id, apiSite);
+    }
 
-  const detailUrl = `${apiSite.api}${API_CONFIG.detail.path}${id}`;
+    const detailUrl = `${apiSite.api}${API_CONFIG.detail.path}${id}`;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  const response = await fetch(detailUrl, {
-    headers: API_CONFIG.detail.headers,
-    signal: controller.signal,
-  });
+    const response = await fetch(detailUrl, {
+      headers: API_CONFIG.detail.headers,
+      signal: controller.signal,
+    });
 
-  clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
 
-  if (!response.ok) {
-    throw new Error(`详情请求失败: ${response.status}`);
-  }
+    if (!response.ok) {
+      throw new Error(`详情请求失败: ${response.status}`);
+    }
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (
-    !data ||
-    !data.list ||
-    !Array.isArray(data.list) ||
-    data.list.length === 0
-  ) {
-    throw new Error('获取到的详情内容无效');
-  }
+    if (
+      !data ||
+      !data.list ||
+      !Array.isArray(data.list) ||
+      data.list.length === 0
+    ) {
+      throw new Error('获取到的详情内容无效');
+    }
 
   const videoDetail = data.list[0];
   // [REFACTORED] 调用辅助函数来解析播放链接
@@ -597,7 +598,18 @@ export async function getDetailFromApi(
     douban_id: videoDetail.vod_douban_id,
   };
 }
-
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[Downstream] getDetailFromApi for site ${apiSite.key} (id: ${id}) failed:`,
+      errorMessage
+    );
+    // 抛出更具体的错误信息，以便上层可以捕获和处理
+    throw new Error(
+      `从源 [${apiSite.name}] 获取ID为 [${id}] 的详情失败: ${errorMessage}`
+    );
+  }
+}
 async function handleSpecialSourceDetail(
   id: string,
   apiSite: ApiSite
