@@ -97,11 +97,11 @@ export class UpstashRedisStorage implements IStorage {
   ): Promise<Record<string, PlayRecord>> {
     const pattern = `u:${userName}:pr:*`;
     const result: Record<string, PlayRecord> = {};
-    let cursor = 0;
+    let cursor: string = '0'; // <--- FIX: Changed to string '0'
 
     do {
       const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
-      cursor = nextCursor;
+      cursor = nextCursor; // <--- FIX: Now correctly assigns string to string
       
       for (const fullKey of keys) {
         const value = await withRetry(() => this.client.get(fullKey));
@@ -119,7 +119,7 @@ export class UpstashRedisStorage implements IStorage {
           }
         }
       }
-    } while (cursor !== 0);
+    } while (cursor !== '0'); // <--- FIX: Changed to string '0'
 
     return result;
   }
@@ -159,11 +159,11 @@ export class UpstashRedisStorage implements IStorage {
   async getAllFavorites(userName: string): Promise<Record<string, Favorite>> {
     const pattern = `u:${userName}:fav:*`;
     const result: Record<string, Favorite> = {};
-    let cursor = 0;
+    let cursor: string = '0'; // <--- FIX: Changed to string '0'
 
     do {
       const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
-      cursor = nextCursor;
+      cursor = nextCursor; // <--- FIX: Now correctly assigns string to string
 
       for (const fullKey of keys) {
         const value = await withRetry(() => this.client.get(fullKey));
@@ -180,7 +180,7 @@ export class UpstashRedisStorage implements IStorage {
           }
         }
       }
-    } while (cursor !== 0);
+    } while (cursor !== '0'); // <--- FIX: Changed to string '0'
 
     return result;
   }
@@ -235,12 +235,12 @@ export class UpstashRedisStorage implements IStorage {
 
     const patterns = [`u:${userName}:pr:*`, `u:${userName}:fav:*`, `u:${userName}:skip:*`];
     for (const pattern of patterns) {
-      let cursor = 0;
+      let cursor: string = '0'; // <--- FIX: Changed to string '0'
       do {
         const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
-        cursor = nextCursor;
+        cursor = nextCursor; // <--- FIX: Now correctly assigns string to string
         keysToDelete.push(...keys);
-      } while (cursor !== 0);
+      } while (cursor !== '0'); // <--- FIX: Changed to string '0'
     }
 
     if (keysToDelete.length > 0) {
@@ -283,10 +283,10 @@ export class UpstashRedisStorage implements IStorage {
   // ---------- 获取全部用户 ----------
   async getAllUsers(): Promise<string[]> {
     const users: string[] = [];
-    let cursor = 0;
+    let cursor: string = '0'; // <--- FIX: Changed to string '0'
     do {
       const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: 'u:*:pwd', count: 100 }));
-      cursor = nextCursor;
+      cursor = nextCursor; // <--- FIX: Now correctly assigns string to string
       const matchedUsers = keys
         .map((k) => {
           const match = k.match(/^u:(.+?):pwd$/);
@@ -294,7 +294,7 @@ export class UpstashRedisStorage implements IStorage {
         })
         .filter((u): u is string => typeof u === 'string');
       users.push(...matchedUsers);
-    } while (cursor !== 0);
+    } while (cursor !== '0'); // <--- FIX: Changed to string '0'
     return users;
   }
 
@@ -369,11 +369,11 @@ export class UpstashRedisStorage implements IStorage {
   ): Promise<{ [key: string]: SkipConfig }> {
     const pattern = `u:${userName}:skip:*`;
     const configs: { [key: string]: SkipConfig } = {};
-    let cursor = 0;
+    let cursor: string = '0'; // <--- FIX: Changed to string '0'
     
     do {
       const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
-      cursor = nextCursor;
+      cursor = nextCursor; // <--- FIX: Now correctly assigns string to string
 
       // 批量获取所有配置
       if (keys.length > 0) {
@@ -396,7 +396,7 @@ export class UpstashRedisStorage implements IStorage {
           }
         });
       }
-    } while (cursor !== 0);
+    } while (cursor !== '0'); // <--- FIX: Changed to string '0'
 
     return configs;
   }
@@ -473,12 +473,12 @@ export class UpstashRedisStorage implements IStorage {
     // 可以根据需要实现特定前缀的缓存清理
     const pattern = prefix ? `cache:${prefix}*` : 'cache:*';
     const keysToDelete: string[] = [];
-    let cursor = 0;
+    let cursor: string = '0'; // <--- FIX: Changed to string '0'
     do {
       const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
-      cursor = nextCursor;
+      cursor = nextCursor; // <--- FIX: Now correctly assigns string to string
       keysToDelete.push(...keys);
-    } while (cursor !== 0);
+    } while (cursor !== '0'); // <--- FIX: Changed to string '0'
 
     if (keysToDelete.length > 0) {
       await withRetry(() => this.client.del(...keysToDelete));
