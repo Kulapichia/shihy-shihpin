@@ -1036,30 +1036,31 @@ function PlayPageClient() {
     };
 
     const initAll = async () => {
-      if (!currentSource && !currentId && !videoTitle && !searchTitle) {
-        setError('缺少必要参数');
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setLoadingStage(currentSource && currentId ? 'fetching' : 'searching');
-      setLoadingMessage(
-        currentSource && currentId
-          ? '🎬 正在获取视频详情...'
-          : '🔍 正在搜索播放源...'
-      );
-      let sourcesInfo: SearchResult[] = [];
-      
-      // 使用智能搜索变体获取全部源信息
-      console.log('开始智能搜索，原始查询:', searchTitle || videoTitle);
-      const searchVariants = generateSearchVariants((searchTitle || videoTitle).trim());
-      console.log('生成的搜索变体:', searchVariants);
-      
-      const allResults: SearchResult[] = [];
-      let bestResults: SearchResult[] = [];
-      
-      for (const variant of searchVariants) {
-        console.log('尝试搜索变体:', variant);
+      try {
+        if (!currentSource && !currentId && !videoTitle && !searchTitle) {
+          setError('缺少必要参数');
+          setLoading(false);
+          return;
+        }
+        setLoading(true);
+        setLoadingStage(currentSource && currentId ? 'fetching' : 'searching');
+        setLoadingMessage(
+          currentSource && currentId
+            ? '🎬 正在获取视频详情...'
+            : '🔍 正在搜索播放源...'
+        );
+        let sourcesInfo: SearchResult[] = [];
+        
+        // 使用智能搜索变体获取全部源信息
+        console.log('开始智能搜索，原始查询:', searchTitle || videoTitle);
+        const searchVariants = generateSearchVariants((searchTitle || videoTitle).trim());
+        console.log('生成的搜索变体:', searchVariants);
+        
+        const allResults: SearchResult[] = [];
+        let bestResults: SearchResult[] = [];
+        
+        for (const variant of searchVariants) {
+          console.log('尝试搜索变体:', variant);
         try {
           const response = await fetch(`/api/search?q=${encodeURIComponent(variant)}`);
           if (!response.ok) {
@@ -1088,100 +1089,103 @@ function PlayPageClient() {
           continue; // 出错时继续下一个变体
         }
       }
-
         
-      sourcesInfo = bestResults.length > 0 ? bestResults : allResults;
-      if (sourcesInfo.length === 0) {
-        sourcesInfo = await fetchSourcesData(searchTitle || videoTitle);
-      }
-      if (
-        currentSource &&
-        currentId &&
-        !sourcesInfo.some(
-          (source) => source.source === currentSource && source.id === currentId
-        )
-      ) {
-        sourcesInfo = await fetchSourceDetail(currentSource, currentId);
-        const directDetail = await fetchSourceDetail(currentSource, currentId);
-        if (directDetail.length > 0) {
-          sourcesInfo.unshift(...directDetail);
+        sourcesInfo = bestResults.length > 0 ? bestResults : allResults;
+        if (sourcesInfo.length === 0) {
+          sourcesInfo = await fetchSourcesData(searchTitle || videoTitle);
         }
-      }
-      if (sourcesInfo.length === 0) {
-        setError('未找到匹配结果');
+        if (
+          currentSource &&
+          currentId &&
+          !sourcesInfo.some(
+            (source) => source.source === currentSource && source.id === currentId
+          )
+        ) {
+          sourcesInfo = await fetchSourceDetail(currentSource, currentId);
+          const directDetail = await fetchSourceDetail(currentSource, currentId);
+          if (directDetail.length > 0) {
+            sourcesInfo.unshift(...directDetail);
+          }
+        }
+        if (sourcesInfo.length === 0) {
+          setError('未找到匹配结果');
+          setLoading(false);
+          return;
+        }
+
+        let finalSources = sourcesInfo;
+        let detailData: SearchResult | undefined;
+
+        // 只要开启了优选开关，就对所有源进行测速和排序
+        if (optimizationEnabled && sourcesInfo.length > 0) {
+          setLoadingStage('preferring');
+          setLoadingMessage('⚡ 正在优选最佳播放源...');
+          const { sortedSources } = await preferBestSource(sourcesInfo);
+          finalSources = sortedSources;
+        }
+        
+        // 关键：无论是否优选，都将最终的列表（可能是排序后的）设置为换源列表
+        setAvailableSources(finalSources);
+        
+        // 对最优源进行预连接
+        preconnectTopSources(finalSources);
+        
+        // 决定首次播放哪个源
+        if (currentSource && currentId && !needPreferRef.current) {
+          // 如果URL指定了源，则在最终列表里找到它
+          const target = finalSources.find(
+            (s) => s.source === currentSource && s.id === currentId
+          );
+
+          // 如果找到了就用它，如果因为过滤等原因找不到了，就用列表里最好的那个
+          detailData = target || finalSources[0];
+        } else {
+          // 如果URL没指定，或者明确要求优选，就直接用列表里最好的那个
+          detailData = finalSources[0];
+        }
+
+        if (!detailData) {
+          setError('未能确定有效的播放源');
+          setLoading(false);
+          return;
+        }
+
+        console.log('选定的播放源:', detailData.source, detailData.id);
+
+        setNeedPrefer(false);
+        setCurrentSource(detailData.source);
+        setCurrentId(detailData.id);
+        setVideoYear(detailData.year);
+        setVideoTitle(detailData.title || videoTitleRef.current);
+        setVideoCover(detailData.poster);
+        setVideoDoubanId(videoDoubanIdRef.current || detailData.douban_id || 0);
+        setDetail(detailData);
+        if (currentEpisodeIndex >= detailData.episodes.length) {
+          setCurrentEpisodeIndex(0);
+        }
+
+        // 规范URL参数
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('source', detailData.source);
+        newUrl.searchParams.set('id', detailData.id);
+        newUrl.searchParams.set('year', detailData.year);
+        newUrl.searchParams.set('title', detailData.title);
+        newUrl.searchParams.delete('prefer');
+        window.history.replaceState({}, '', newUrl.toString());
+
+        setLoadingStage('ready');
+        setLoadingMessage('✨ 准备就绪，即将开始播放...');
+
+        // 短暂延迟让用户看到完成状态
+        setTimeout(() => {
+          setLoading(false);
+        }, 1000);
+      } catch (err) {
+        console.error('初始化播放页面失败:', err);
+        setError(err instanceof Error ? err.message : '加载视频源时发生未知错误');
         setLoading(false);
-        return;
       }
-
-      let finalSources = sourcesInfo;
-      let detailData: SearchResult | undefined;
-
-      // 只要开启了优选开关，就对所有源进行测速和排序
-      if (optimizationEnabled && sourcesInfo.length > 0) {
-        setLoadingStage('preferring');
-        setLoadingMessage('⚡ 正在优选最佳播放源...');
-        const { sortedSources } = await preferBestSource(sourcesInfo);
-        finalSources = sortedSources;
-      }
-      
-      // 关键：无论是否优选，都将最终的列表（可能是排序后的）设置为换源列表
-      setAvailableSources(finalSources);
-      
-      // 对最优源进行预连接
-      preconnectTopSources(finalSources);
-      
-      // 决定首次播放哪个源
-      if (currentSource && currentId && !needPreferRef.current) {
-        // 如果URL指定了源，则在最终列表里找到它
-        const target = finalSources.find(
-          (s) => s.source === currentSource && s.id === currentId
-        );
-
-        // 如果找到了就用它，如果因为过滤等原因找不到了，就用列表里最好的那个
-        detailData = target || finalSources[0];
-      } else {
-        // 如果URL没指定，或者明确要求优选，就直接用列表里最好的那个
-        detailData = finalSources[0];
-      }
-
-      if (!detailData) {
-        setError('未能确定有效的播放源');
-        setLoading(false);
-        return;
-      }
-
-      console.log('选定的播放源:', detailData.source, detailData.id);
-
-      setNeedPrefer(false);
-      setCurrentSource(detailData.source);
-      setCurrentId(detailData.id);
-      setVideoYear(detailData.year);
-      setVideoTitle(detailData.title || videoTitleRef.current);
-      setVideoCover(detailData.poster);
-      setVideoDoubanId(videoDoubanIdRef.current || detailData.douban_id || 0);
-      setDetail(detailData);
-      if (currentEpisodeIndex >= detailData.episodes.length) {
-        setCurrentEpisodeIndex(0);
-      }
-
-      // 规范URL参数
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('source', detailData.source);
-      newUrl.searchParams.set('id', detailData.id);
-      newUrl.searchParams.set('year', detailData.year);
-      newUrl.searchParams.set('title', detailData.title);
-      newUrl.searchParams.delete('prefer');
-      window.history.replaceState({}, '', newUrl.toString());
-
-      setLoadingStage('ready');
-      setLoadingMessage('✨ 准备就绪，即将开始播放...');
-
-      // 短暂延迟让用户看到完成状态
-      setTimeout(() => {
-        setLoading(false);
-      }, 1000);
     };
-
     initAll();
   }, []);
 
