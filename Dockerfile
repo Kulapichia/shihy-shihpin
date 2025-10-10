@@ -1,5 +1,5 @@
 # ---- 第 1 阶段：安装依赖 ----
-FROM node:20-alpine AS deps
+FROM node:20-slim AS deps
 
 # 启用 corepack 并激活 pnpm（Node20 默认提供 corepack）
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -13,7 +13,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # ---- 第 2 阶段：构建项目 (增加详细日志) ----
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
@@ -73,7 +73,7 @@ RUN echo "=== Starting Next.js Build with Debug Output ===" && \
 # ======================================================
 
 # ---- 第 3 阶段：生成运行时镜像 ----
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 # 创建非 root 用户
 RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S nextjs -G nodejs
