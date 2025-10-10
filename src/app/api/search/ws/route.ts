@@ -353,12 +353,21 @@ export async function GET(request: NextRequest) {
               const moderatedResults = [];
               for (const batch of batches) {
                 const batchPromises = batch.map(async (item) => {
-                  if (isServiceDown) return item;
-                  const moderationResult = await moderateImage(item.poster, config);
-                  if (moderationResult.decision === 'error') failureCount++; else failureCount = 0;
-                  if (failureCount >= failureThreshold) isServiceDown = true;
-                  return moderationResult.decision !== 'block' ? item : null;
+                  try {
+                    if (isServiceDown) return item;
+                    const moderationResult = await moderateImage(item.poster, config);
+                    if (moderationResult.decision === 'error') failureCount++; else failureCount = 0;
+                    if (failureCount >= failureThreshold) isServiceDown = true;
+                    return moderationResult.decision !== 'block' ? item : null;
+                  } catch (modError) {
+                    console.error('[WS AI Filter DEBUG] Unhandled exception in moderation, allowing item to pass:', {
+                      title: item.title,
+                      error: modError instanceof Error ? modError.message : String(modError),
+                    });
+                    return item; // 容错：审核失败时放行
+                  }
                 });
+
                 const batchResults = await Promise.all(batchPromises);
                 moderatedResults.push(...batchResults);
                 if (batches.indexOf(batch) < batches.length - 1) await new Promise(resolve => setTimeout(resolve, 250));
