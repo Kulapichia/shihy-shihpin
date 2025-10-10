@@ -220,13 +220,16 @@ export async function GET(request: Request) {
       errorName: error instanceof Error ? error.name : 'UnknownError',
     });
     
-    let statusCode = 502; // Bad Gateway 作为默认值，表示上游服务器问题
+    let statusCode = 502; // Bad Gateway 作为默认值
     let errorMessage = '代理密钥文件失败';
 
     if (error instanceof Error) {
       if (error.name === 'AbortError' || error.message.includes('timeout')) {
         statusCode = 504; // Gateway Timeout 更精确
         errorMessage = '源服务器请求超时';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        statusCode = 502; // Bad Gateway
+        errorMessage = '从源服务器获取密钥时发生网络错误';
       }
     }
 
