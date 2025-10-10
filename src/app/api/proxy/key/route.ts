@@ -214,9 +214,29 @@ export async function GET(request: Request) {
 
     return new Response(keyData, { headers });
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      return NextResponse.json({ error: 'Key request timeout' }, { status: 408 });
+    // --- 增强的错误处理 ---
+    console.error(`[Key Proxy Error] 代理失败: ${decodedUrl}`, {
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    });
+    
+    let statusCode = 502; // Bad Gateway 作为默认值，表示上游服务器问题
+    let errorMessage = '代理密钥文件失败';
+
+    if (error instanceof Error) {
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        statusCode = 504; // Gateway Timeout 更精确
+        errorMessage = '源服务器请求超时';
+      }
     }
-    return NextResponse.json({ error: 'Failed to fetch key' }, { status: 500 });
+
+    // 确保总是返回一个 NextResponse 对象
+    return NextResponse.json(
+      { error: errorMessage },
+      { 
+        status: statusCode,
+        headers: { 'Access-Control-Allow-Origin': '*' }
+      }
+    );
   }
 }
