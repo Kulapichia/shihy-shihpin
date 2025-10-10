@@ -126,6 +126,7 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
             NODE_ENV=production
+            SHARP_IGNORE_GLOBAL_LIBVIPS=1
 
   # 清理任务
   cleanup:
