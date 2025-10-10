@@ -72,7 +72,16 @@ export class UpstashRedisStorage implements IStorage {
     const val = await withRetry(() =>
       this.client.get(this.prKey(userName, key))
     );
-    return val ? (val as PlayRecord) : null;
+    if (!val) return null;
+    try {
+      // Upstash可能返回对象或字符串，统一处理
+      return (
+        typeof val === 'string' ? JSON.parse(val) : val
+      ) as PlayRecord;
+    } catch (e) {
+      console.error(`[DB] Failed to parse PlayRecord for key ${key}:`, e);
+      return null;
+    }
   }
 
   async setPlayRecord(
@@ -94,9 +103,17 @@ export class UpstashRedisStorage implements IStorage {
     for (const fullKey of keys) {
       const value = await withRetry(() => this.client.get(fullKey));
       if (value) {
-        // 截取 source+id 部分
-        const keyPart = ensureString(fullKey.replace(`u:${userName}:pr:`, ''));
-        result[keyPart] = value as PlayRecord;
+        try {
+          // 截取 source+id 部分
+          const keyPart = ensureString(
+            fullKey.replace(`u:${userName}:pr:`, '')
+          );
+          result[keyPart] = (
+            typeof value === 'string' ? JSON.parse(value) : value
+          ) as PlayRecord;
+        } catch (e) {
+          console.error(`[DB] Failed to parse PlayRecord for key ${fullKey}:`, e);
+        }
       }
     }
     return result;
@@ -115,7 +132,13 @@ export class UpstashRedisStorage implements IStorage {
     const val = await withRetry(() =>
       this.client.get(this.favKey(userName, key))
     );
-    return val ? (val as Favorite) : null;
+    if (!val) return null;
+    try {
+      return (typeof val === 'string' ? JSON.parse(val) : val) as Favorite;
+    } catch (e) {
+      console.error(`[DB] Failed to parse Favorite for key ${key}:`, e);
+      return null;
+    }
   }
 
   async setFavorite(
@@ -137,8 +160,16 @@ export class UpstashRedisStorage implements IStorage {
     for (const fullKey of keys) {
       const value = await withRetry(() => this.client.get(fullKey));
       if (value) {
-        const keyPart = ensureString(fullKey.replace(`u:${userName}:fav:`, ''));
-        result[keyPart] = value as Favorite;
+        try {
+          const keyPart = ensureString(
+            fullKey.replace(`u:${userName}:fav:`, '')
+          );
+          result[keyPart] = (
+            typeof value === 'string' ? JSON.parse(value) : value
+          ) as Favorite;
+        } catch (e) {
+          console.error(`[DB] Failed to parse Favorite for key ${fullKey}:`, e);
+        }
       }
     }
     return result;
@@ -270,7 +301,13 @@ export class UpstashRedisStorage implements IStorage {
 
   async getAdminConfig(): Promise<AdminConfig | null> {
     const val = await withRetry(() => this.client.get(this.adminConfigKey()));
-    return val ? (val as AdminConfig) : null;
+    if (!val) return null;
+    try {
+      return (typeof val === 'string' ? JSON.parse(val) : val) as AdminConfig;
+    } catch (e) {
+      console.error(`[DB] Failed to parse AdminConfig:`, e);
+      return null;
+    }
   }
 
   async setAdminConfig(config: AdminConfig): Promise<void> {
@@ -290,7 +327,16 @@ export class UpstashRedisStorage implements IStorage {
     const val = await withRetry(() =>
       this.client.get(this.skipConfigKey(userName, source, id))
     );
-    return val ? (val as SkipConfig) : null;
+    if (!val) return null;
+    try {
+      return (typeof val === 'string' ? JSON.parse(val) : val) as SkipConfig;
+    } catch (e) {
+      console.error(
+        `[DB] Failed to parse SkipConfig for key ${source}+${id}:`,
+        e
+      );
+      return null;
+    }
   }
 
   async setSkipConfig(
@@ -332,11 +378,17 @@ export class UpstashRedisStorage implements IStorage {
     keys.forEach((key, index) => {
       const value = values[index];
       if (value) {
-        // 从key中提取source+id
-        const match = key.match(/^u:.+?:skip:(.+)$/);
-        if (match) {
-          const sourceAndId = match[1];
-          configs[sourceAndId] = value as SkipConfig;
+        try {
+          // 从key中提取source+id
+          const match = key.match(/^u:.+?:skip:(.+)$/);
+          if (match) {
+            const sourceAndId = match[1];
+            configs[sourceAndId] = (
+              typeof value === 'string' ? JSON.parse(value) : value
+            ) as SkipConfig;
+          }
+        } catch (e) {
+          console.error(`[DB] Failed to parse SkipConfig for key ${key}:`, e);
         }
       }
     });
@@ -513,7 +565,16 @@ export class UpstashRedisStorage implements IStorage {
       throw new Error(`Pending user ${username} not found`);
     }
 
-    const pendingUser: PendingUser = JSON.parse(ensureString(pendingUserData));
+    let pendingUser: PendingUser;
+    try {
+      const raw = ensureString(pendingUserData);
+      pendingUser = (typeof raw === 'string' ? JSON.parse(raw) : raw) as PendingUser;
+    } catch (e) {
+      console.error(`[DB] Failed to parse PendingUser for ${username}:`, e);
+      // 如果解析失败，直接拒绝并删除该损坏的待审核记录
+      await this.rejectPendingUser(username);
+      throw new Error(`待审核用户 ${username} 的数据已损坏`);
+    }
 
     // 创建正式用户（使用明文密码）
     await this.registerUser(username, pendingUser.password);
