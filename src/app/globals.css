@@ -93,15 +93,18 @@ html:not(.dark) body {
   }
 }
 
-/* 隐藏所有滚动条（兼容 WebKit、Firefox、IE/Edge） */
-* {
+/* 将隐藏滚动条的规则范围缩小到 html 和 body，避免影响内部可滚动元素 */
+html,
+body {
   -ms-overflow-style: none; /* IE & Edge */
   scrollbar-width: none; /* Firefox */
 }
 
-*::-webkit-scrollbar {
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
+
 
 /* View Transitions API 动画 */
 @keyframes slide-from-top {
