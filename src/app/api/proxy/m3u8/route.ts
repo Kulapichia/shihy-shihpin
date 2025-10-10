@@ -190,16 +190,13 @@ export async function GET(request: Request) {
     });
   
     // 根据错误类型返回不同的状态码
-    let statusCode = 500;
-    let errorMessage = 'Failed to fetch m3u8';
+    let statusCode = 502; // Bad Gateway 作为默认值
+    let errorMessage = '代理 M3U8 文件失败';
   
     if (error instanceof Error) {
       if (error.name === 'AbortError' || error.message.includes('timeout')) {
-        statusCode = 408; // Request Timeout
-        errorMessage = 'Request timeout';
-      } else if (error.message.includes('network') || error.message.includes('fetch')) {
-        statusCode = 502; // Bad Gateway
-        errorMessage = 'Network error while fetching m3u8 from source';
+        statusCode = 504; // Gateway Timeout 更精确
+        errorMessage = '源服务器请求超时';
       }
     }
   
