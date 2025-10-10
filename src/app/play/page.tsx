@@ -1060,30 +1060,36 @@ function PlayPageClient() {
       
       for (const variant of searchVariants) {
         console.log('尝试搜索变体:', variant);
-        const response = await fetch(`/api/search?q=${encodeURIComponent(variant)}`);
-        if (!response.ok) {
-          console.warn(`搜索变体 "${variant}" 失败:`, response.statusText);
-          continue;
-        }
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          allResults.push(...data.results);
-          const filteredResults = data.results.filter((result: SearchResult) => {
-            const queryTitle = videoTitleRef.current.replaceAll(' ', '').toLowerCase();
-            const resultTitle = result.title.replaceAll(' ', '').toLowerCase();
-            const titleMatch = resultTitle.includes(queryTitle) || queryTitle.includes(resultTitle) || resultTitle.replace(/\d+|[：:]/g, '') === queryTitle.replace(/\d+|[：:]/g, '') || checkAllKeywordsMatch(queryTitle, resultTitle);
-            const yearMatch = videoYearRef.current ? result.year.toLowerCase() === videoYearRef.current.toLowerCase() : true;
-            const typeMatch = searchType ? (searchType === 'tv' && result.episodes.length > 1) || (searchType === 'movie' && result.episodes.length === 1) : true;
-            return titleMatch && yearMatch && typeMatch;
-          });
-          if (filteredResults.length > 0) {
-            console.log(`变体 "${variant}" 找到 ${filteredResults.length} 个精确匹配结果`);
-            bestResults = filteredResults;
-            break; 
+        try {
+          const response = await fetch(`/api/search?q=${encodeURIComponent(variant)}`);
+          if (!response.ok) {
+            console.warn(`搜索变体 "${variant}" 失败:`, response.statusText);
+            continue;
           }
+          const data = await response.json();
+          if (data.results && data.results.length > 0) {
+            allResults.push(...data.results);
+            const filteredResults = data.results.filter((result: SearchResult) => {
+              const queryTitle = videoTitleRef.current.replaceAll(' ', '').toLowerCase();
+              const resultTitle = result.title.replaceAll(' ', '').toLowerCase();
+              const titleMatch = resultTitle.includes(queryTitle) || queryTitle.includes(resultTitle) || resultTitle.replace(/\d+|[：:]/g, '') === queryTitle.replace(/\d+|[：:]/g, '') || checkAllKeywordsMatch(queryTitle, resultTitle);
+              const yearMatch = videoYearRef.current ? result.year.toLowerCase() === videoYearRef.current.toLowerCase() : true;
+              const typeMatch = searchType ? (searchType === 'tv' && result.episodes.length > 1) || (searchType === 'movie' && result.episodes.length === 1) : true;
+              return titleMatch && yearMatch && typeMatch;
+            });
+            if (filteredResults.length > 0) {
+              console.log(`变体 "${variant}" 找到 ${filteredResults.length} 个精确匹配结果`);
+              bestResults = filteredResults;
+              break; 
+            }
+          }
+        } catch (error) {
+          console.error(`处理搜索变体 "${variant}" 时发生错误:`, error);
+          continue; // 出错时继续下一个变体
         }
       }
-      
+
+        
       sourcesInfo = bestResults.length > 0 ? bestResults : allResults;
       if (sourcesInfo.length === 0) {
         sourcesInfo = await fetchSourcesData(searchTitle || videoTitle);
