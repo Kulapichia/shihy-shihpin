@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
   });
 
   console.log(`[Search API] Created ${searchPromises.length} search promises for query: "${query}"`);
-  console.log('[Search API] Starting search with sites:', apiSites.map(site => ({ key: site.key, name: site.name, status: site.lastCheck?.status })));
+  
   // International leading advanced search relevance scoring algorithm
   const calculateRelevanceScore = (item: any, searchQuery: string): number => {
       const query = searchQuery.toLowerCase().trim();
@@ -400,90 +400,100 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // --- 1. 关键词过滤 ---
-    // 首先，无论如何都先根据关键词给内容打上 isYellow 标签，供前端UI使用
-    flattenedResults.forEach((result: any) => {
-      const typeName = result.type_name || '';
-      const title = result.title || '';
-      const titleModeration = moderateContent(title);
-      const typeModeration = moderateContent(typeName);
-      if (
-        titleModeration.totalScore >= decisionThresholds.FLAG ||
-        typeModeration.totalScore >= decisionThresholds.FLAG
-      ) {
-        result.isYellow = true;
-      }
-    });
-
-    // 然后，如果“禁用黄色过滤器”开关是关闭的，则执行过滤
+    // --- 1. 内容安全审核流程 ---
+    // 只有当“禁用黄色过滤器”开关是关闭的时候，才执行所有过滤逻辑
     if (!config.SiteConfig.DisableYellowFilter) {
-      flattenedResults = flattenedResults.filter((result) => !result.isYellow);
-    }
-
-    // --- 2. 智能 AI 审核 (新增熔断机制) ---
-    if (config.SiteConfig.IntelligentFilter?.enabled) {
-      console.log('[AI Filter DEBUG] IntelligentFilter is ENABLED. Starting moderation process...');
-      
-      let failureCount = 0;
-      const failureThreshold = 5;
-      let isServiceDown = false;
-
-      // 添加批次处理，避免并发过高
-      const batchSize = 5;
-      const batches = [];
-      for (let i = 0; i < flattenedResults.length; i += batchSize) {
-        batches.push(flattenedResults.slice(i, i + batchSize));
-      }
-
-      const moderatedResults = [];
-      for (const batch of batches) {
-          const batchPromises = batch.map(async (item) => {
-            try {
-              // 如果服务已熔断，则直接放行
-              if (isServiceDown) {
-                console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item to pass directly.`);
-                return item;
-              }
-
-              const moderationResult = await moderateImage(item.poster, config);
-              
-              if (moderationResult.decision === 'error') {
-                failureCount++;
-                console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
-              } else {
-                // 任何一次成功都应立即重置失败计数，表明服务已恢复
-                failureCount = 0;
-              }
-
-              // 检查是否达到熔断阈值
-              if (failureCount >= failureThreshold) {
-                isServiceDown = true;
-                console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
-              }
-
-              // 策略：失败时放行 (当审核出错或审核通过时，都保留)
-              return moderationResult.decision !== 'block' ? item : null;
-            } catch (modError) {
-              console.error('[AI Filter DEBUG] Unhandled exception in moderation process, allowing item to pass:', {
-                title: item.title,
-                poster: item.poster,
-                error: modError instanceof Error ? modError.message : String(modError),
-              });
-              return item; // 容错：审核过程意外失败时，默认放行
-            }
-          });
-
-        
-        const batchResults = await Promise.all(batchPromises);
-        moderatedResults.push(...batchResults);
-        
-        // 批次间添加延迟，减少API压力
-        if (batches.indexOf(batch) < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+      // --- 1a. 关键词过滤 ---
+      // 先根据关键词给内容打上 isYellow 标签
+      flattenedResults.forEach((result: any) => {
+        const typeName = result.type_name || '';
+        const title = result.title || '';
+        const titleModeration = moderateContent(title);
+        const typeModeration = moderateContent(typeName);
+        if (
+          titleModeration.totalScore >= decisionThresholds.FLAG ||
+          typeModeration.totalScore >= decisionThresholds.FLAG
+        ) {
+          result.isYellow = true;
         }
-      }
+      });
 
-      flattenedResults = moderatedResults.filter((item): item is any => item !== null);
+      // 根据 isYellow 标签进行过滤
+      flattenedResults = flattenedResults.filter((result) => !result.isYellow);
+
+      // --- 1b. 智能 AI 图片审核 (仅在关键词过滤后，且AI审核开启时执行) ---
+      if (config.SiteConfig.IntelligentFilter?.enabled) {
+        console.log('[AI Filter DEBUG] IntelligentFilter is ENABLED. Starting moderation process...');
+        
+        let failureCount = 0;
+        const failureThreshold = 5;
+        let isServiceDown = false;
+
+        // 添加批次处理，避免并发过高
+        const batchSize = 5;
+        const batches = [];
+        for (let i = 0; i < flattenedResults.length; i += batchSize) {
+          batches.push(flattenedResults.slice(i, i + batchSize));
+        }
+
+        const moderatedResults = [];
+        for (const batch of batches) {
+            const batchPromises = batch.map(async (item) => {
+              try {
+                // 如果服务已熔断，则直接放行
+                if (isServiceDown) {
+                  console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item to pass directly.`);
+                  return item;
+                }
+
+                const moderationResult = await moderateImage(item.poster, config);
+                
+                if (moderationResult.decision === 'error') {
+                  failureCount++;
+                  console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
+                } else {
+                  // 任何一次成功都应立即重置失败计数，表明服务已恢复
+                  failureCount = 0;
+                }
+
+                // 检查是否达到熔断阈值
+                if (failureCount >= failureThreshold) {
+                  isServiceDown = true;
+                  console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
+                }
+
+                // 策略：失败时放行 (当审核出错或审核通过时，都保留)
+                return moderationResult.decision !== 'block' ? item : null;
+              } catch (modError) {
+                console.error('[AI Filter DEBUG] Unhandled exception in moderation process, allowing item to pass:', {
+                  title: item.title,
+                  poster: item.poster,
+                  error: modError instanceof Error ? modError.message : String(modError),
+                });
+                return item; // 容错：审核过程意外失败时，默认放行
+              }
+            });
+
+          
+          const batchResults = await Promise.all(batchPromises);
+          moderatedResults.push(...batchResults);
+          
+          // 批次间添加延迟，减少API压力
+          if (batches.indexOf(batch) < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+
+        flattenedResults = moderatedResults.filter((item): item is any => item !== null);
+      }
+    } else {
+      // 如果禁用了黄色过滤器，则清除所有可能存在的 isYellow 标记
+      flattenedResults.forEach((result: any) => {
+        if (result.isYellow) {
+          delete result.isYellow;
+        }
+      });
+      console.log('[Search API] Yellow filter is disabled. Skipping all content moderation.');
     }
     
     // Create a map for quick lookup of site health status
@@ -573,12 +583,24 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error('[Search API] Unexpected error in search process:', {
-      error: error instanceof Error ? error.message : error,
-      stack: error instanceof Error ? error.stack : null,
+    // [关键修复] 增加更详细的错误日志，并确保在任何情况下都返回一个有效的JSON响应
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
+    
+    console.error('[Search API] CRITICAL: Unhandled exception in search process. This is the final catch block.', {
+      error: errorMessage,
+      stack: errorStack,
       query,
       timestamp: new Date().toISOString()
     });
-    return NextResponse.json({ error: '搜索失败' }, { status: 500 });
+
+    // 始终返回一个标准的JSON错误响应，而不是让服务器崩溃
+    return NextResponse.json(
+      { 
+        error: `搜索过程中发生严重服务器错误: ${errorMessage}`,
+        results: [] 
+      }, 
+      { status: 500 }
+    );
   }
 }
