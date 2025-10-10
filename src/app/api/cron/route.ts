@@ -170,7 +170,7 @@ async function refreshRecordAndFavorites() {
 
             const detail = await getDetail(source, id, record.title);
             if (!detail) {
-              console.warn(`跳过无法获取详情的播放记录: ${key}`);
+              console.log(`跳过无法获取详情的播放记录: ${key}`);
               continue;
             }
 
@@ -224,7 +224,7 @@ async function refreshRecordAndFavorites() {
 
             const favDetail = await getDetail(source, id, fav.title);
             if (!favDetail) {
-              console.warn(`跳过无法获取详情的收藏: ${key}`);
+              console.log(`跳过无法获取详情的收藏: ${key}`);
               continue;
             }
 
