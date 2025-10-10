@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
               ),
             ]);
 
-            const results = (await searchPromise) as any[];
+            let results = (await searchPromise) as any[];
 
             if (!Array.isArray(results)) {
               throw new Error('返回数据格式不正确');
@@ -251,34 +251,13 @@ export async function GET(request: NextRequest) {
               return Math.max(0, Math.round(score));
             };
 
-            let filteredResults = results || [];
-            filteredResults.forEach((item: any) => {
+            results.forEach((item: any) => {
               if (item.poster && item.poster.startsWith('http://')) {
                 item.poster = item.poster.replace('http://', 'https://');
               }
             });
 
-            const shouldTagInsteadOfFilter = config.SiteConfig.DisableYellowFilter;
-
-            filteredResults.forEach((result: any) => {
-              const typeName = result.type_name || '';
-              const title = result.title || '';
-              const titleModeration = moderateContent(title);
-              const typeModeration = moderateContent(typeName);
-              if (
-                titleModeration.totalScore >= decisionThresholds.FLAG ||
-                typeModeration.totalScore >= decisionThresholds.FLAG
-              ) {
-                result.isYellow = true;
-              }
-            });
-            
-            if (!shouldTagInsteadOfFilter) {
-                filteredResults = filteredResults.filter((result) => !result.isYellow);
-            }
-
-            if (config.SiteConfig.IntelligentFilter?.enabled) {
-              const moderateImage = async (imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> => {
+            const moderateImage = async (imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> => {
                 const filterConfig = config.SiteConfig.IntelligentFilter;
                 if (!filterConfig || !filterConfig.enabled || !imageUrl) return { decision: 'allow', reason: 'Filter disabled or no image URL' };
                 const getNestedValue = (obj: any, path: string): number | null => {
@@ -341,41 +320,70 @@ export async function GET(request: NextRequest) {
                   }
                   default: return { decision: 'allow', reason: 'Unknown provider' };
                 }
-              }
-              let failureCount = 0;
-              const failureThreshold = 5;
-              let isServiceDown = false;
-              const batchSize = 3;
-              const batches = [];
-              for (let i = 0; i < filteredResults.length; i += batchSize) {
-                batches.push(filteredResults.slice(i, i + batchSize));
-              }
-              const moderatedResults = [];
-              for (const batch of batches) {
-                const batchPromises = batch.map(async (item) => {
-                  try {
-                    if (isServiceDown) return item;
-                    const moderationResult = await moderateImage(item.poster, config);
-                    if (moderationResult.decision === 'error') failureCount++; else failureCount = 0;
-                    if (failureCount >= failureThreshold) isServiceDown = true;
-                    return moderationResult.decision !== 'block' ? item : null;
-                  } catch (modError) {
-                    console.error('[WS AI Filter DEBUG] Unhandled exception in moderation, allowing item to pass:', {
-                      title: item.title,
-                      error: modError instanceof Error ? modError.message : String(modError),
-                    });
-                    return item; // 容错：审核失败时放行
-                  }
-                });
+            };
+            
+            // --- [关键修复] 完整的内容安全审核流程 ---
+            // 只有当“禁用黄色过滤器”开关是关闭的时候，才执行所有过滤逻辑
+            if (!config.SiteConfig.DisableYellowFilter) {
+              // 1a. 关键词过滤
+              results.forEach((result: any) => {
+                const typeName = result.type_name || '';
+                const title = result.title || '';
+                const titleModeration = moderateContent(title);
+                const typeModeration = moderateContent(typeName);
+                if (
+                  titleModeration.totalScore >= decisionThresholds.FLAG ||
+                  typeModeration.totalScore >= decisionThresholds.FLAG
+                ) {
+                  result.isYellow = true;
+                }
+              });
+              results = results.filter((result) => !result.isYellow);
 
-                const batchResults = await Promise.all(batchPromises);
-                moderatedResults.push(...batchResults);
-                if (batches.indexOf(batch) < batches.length - 1) await new Promise(resolve => setTimeout(resolve, 250));
+              // 1b. 智能 AI 图片审核 (带熔断)
+              if (config.SiteConfig.IntelligentFilter?.enabled) {
+                let failureCount = 0;
+                const failureThreshold = 5;
+                let isServiceDown = false;
+                const batchSize = 3;
+                const batches = [];
+                for (let i = 0; i < results.length; i += batchSize) {
+                  batches.push(results.slice(i, i + batchSize));
+                }
+                const moderatedResults = [];
+                for (const batch of batches) {
+                  const batchPromises = batch.map(async (item) => {
+                    try {
+                      if (isServiceDown) return item;
+                      const moderationResult = await moderateImage(item.poster, config);
+                      if (moderationResult.decision === 'error') failureCount++; else failureCount = 0;
+                      if (failureCount >= failureThreshold) isServiceDown = true;
+                      return moderationResult.decision !== 'block' ? item : null;
+                    } catch (modError) {
+                      console.error('[WS AI Filter DEBUG] Unhandled exception in moderation, allowing item to pass:', {
+                        title: item.title,
+                        error: modError instanceof Error ? modError.message : String(modError),
+                      });
+                      return item; // 容错：审核失败时放行
+                    }
+                  });
+
+                  const batchResults = await Promise.all(batchPromises);
+                  moderatedResults.push(...batchResults.filter((item): item is any => item !== null));
+                  if (batches.indexOf(batch) < batches.length - 1) await new Promise(resolve => setTimeout(resolve, 250));
+                }
+                results = moderatedResults;
               }
-              filteredResults = moderatedResults.filter((item): item is any => item !== null);
+            } else {
+              // 如果禁用了过滤器，清除 isYellow 标记
+              results.forEach((result: any) => {
+                if (result.isYellow) {
+                  delete result.isYellow;
+                }
+              });
             }
 
-            const scoredResults = filteredResults
+            const scoredResults = results
               .map(item => ({ ...item, relevanceScore: calculateRelevanceScore(item, query) }))
               .filter(item => {
                 const minThreshold = query.length <= 2 ? 100 : 50;
@@ -398,7 +406,7 @@ export async function GET(request: NextRequest) {
                 return scoreDiff;
               });
             
-            filteredResults = scoredResults;
+            const filteredResults = scoredResults;
 
             if (!streamClosed) {
               const sourceEvent = `data: ${JSON.stringify({
