@@ -75,8 +75,9 @@ RUN echo "=== Starting Next.js Build with Debug Output ===" && \
 # ---- 第 3 阶段：生成运行时镜像 ----
 FROM node:20-slim AS runner
 
-# 创建非 root 用户
-RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S nextjs -G nodejs
+# 创建非 root 用户 (使用 Debian 兼容的语法)
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs --no-create-home --disabled-password nextjs
 
 WORKDIR /app
 ENV NODE_ENV=production
