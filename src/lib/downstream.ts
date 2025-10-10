@@ -262,12 +262,12 @@ export async function searchFromApi(
       }
 
       // 等待所有额外页的结果
-      const additionalResults = await Promise.all(additionalPagePromises);
+      const additionalResults = await Promise.allSettled(additionalPagePromises);
 
       // 合并所有页的结果
-      additionalResults.forEach((pageResults) => {
-        if (pageResults.length > 0) {
-          results.push(...pageResults);
+      additionalResults.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value.length > 0) {
+          results.push(...result.value);
         }
       });
     }
