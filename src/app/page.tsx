@@ -73,9 +73,9 @@ function HomeClient() {
       try {
         setLoading(true);
 
-        // 并行获取热门电影、热门剧集和热门综艺
-        const [moviesData, tvShowsData, varietyShowsData, bangumiCalendarData] =
-          await Promise.all([
+        // 使用 Promise.allSettled 并行获取，避免单一接口失败导致整个页面崩溃
+        const [moviesResult, tvShowsResult, varietyShowsResult, bangumiCalendarResult] =
+          await Promise.allSettled([
             getDoubanCategories({
               kind: 'movie',
               category: '热门',
@@ -86,19 +86,30 @@ function HomeClient() {
             GetBangumiCalendarData(),
           ]);
 
-        if (moviesData.code === 200) {
-          setHotMovies(moviesData.list);
+        if (moviesResult.status === 'fulfilled' && moviesResult.value.code === 200) {
+          setHotMovies(moviesResult.value.list);
+        } else if (moviesResult.status === 'rejected') {
+          console.error('获取热门电影失败:', moviesResult.reason);
         }
 
-        if (tvShowsData.code === 200) {
-          setHotTvShows(tvShowsData.list);
+        if (tvShowsResult.status === 'fulfilled' && tvShowsResult.value.code === 200) {
+          setHotTvShows(tvShowsResult.value.list);
+        } else if (tvShowsResult.status === 'rejected') {
+          console.error('获取热门剧集失败:', tvShowsResult.reason);
         }
 
-        if (varietyShowsData.code === 200) {
-          setHotVarietyShows(varietyShowsData.list);
+        if (varietyShowsResult.status === 'fulfilled' && varietyShowsResult.value.code === 200) {
+          setHotVarietyShows(varietyShowsResult.value.list);
+        } else if (varietyShowsResult.status === 'rejected') {
+          console.error('获取热门综艺失败:', varietyShowsResult.reason);
         }
 
-        setBangumiCalendarData(bangumiCalendarData);
+        if (bangumiCalendarResult.status === 'fulfilled') {
+          setBangumiCalendarData(bangumiCalendarResult.value);
+        } else if (bangumiCalendarResult.status === 'rejected') {
+          console.error('获取新番放送日历失败:', bangumiCalendarResult.reason);
+        }
+
       } catch (error) {
         console.error('获取推荐数据失败:', error);
       } finally {
