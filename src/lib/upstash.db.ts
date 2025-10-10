@@ -96,26 +96,31 @@ export class UpstashRedisStorage implements IStorage {
     userName: string
   ): Promise<Record<string, PlayRecord>> {
     const pattern = `u:${userName}:pr:*`;
-    const keys: string[] = await withRetry(() => this.client.keys(pattern));
-    if (keys.length === 0) return {};
-
     const result: Record<string, PlayRecord> = {};
-    for (const fullKey of keys) {
-      const value = await withRetry(() => this.client.get(fullKey));
-      if (value) {
-        try {
-          // 截取 source+id 部分
-          const keyPart = ensureString(
-            fullKey.replace(`u:${userName}:pr:`, '')
-          );
-          result[keyPart] = (
-            typeof value === 'string' ? JSON.parse(value) : value
-          ) as PlayRecord;
-        } catch (e) {
-          console.error(`[DB] Failed to parse PlayRecord for key ${fullKey}:`, e);
+    let cursor = 0;
+
+    do {
+      const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
+      cursor = nextCursor;
+      
+      for (const fullKey of keys) {
+        const value = await withRetry(() => this.client.get(fullKey));
+        if (value) {
+          try {
+            // 截取 source+id 部分
+            const keyPart = ensureString(
+              fullKey.replace(`u:${userName}:pr:`, '')
+            );
+            result[keyPart] = (
+              typeof value === 'string' ? JSON.parse(value) : value
+            ) as PlayRecord;
+          } catch (e) {
+            console.error(`[DB] Failed to parse PlayRecord for key ${fullKey}:`, e);
+          }
         }
       }
-    }
+    } while (cursor !== 0);
+
     return result;
   }
 
@@ -153,25 +158,30 @@ export class UpstashRedisStorage implements IStorage {
 
   async getAllFavorites(userName: string): Promise<Record<string, Favorite>> {
     const pattern = `u:${userName}:fav:*`;
-    const keys: string[] = await withRetry(() => this.client.keys(pattern));
-    if (keys.length === 0) return {};
-
     const result: Record<string, Favorite> = {};
-    for (const fullKey of keys) {
-      const value = await withRetry(() => this.client.get(fullKey));
-      if (value) {
-        try {
-          const keyPart = ensureString(
-            fullKey.replace(`u:${userName}:fav:`, '')
-          );
-          result[keyPart] = (
-            typeof value === 'string' ? JSON.parse(value) : value
-          ) as Favorite;
-        } catch (e) {
-          console.error(`[DB] Failed to parse Favorite for key ${fullKey}:`, e);
+    let cursor = 0;
+
+    do {
+      const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
+      cursor = nextCursor;
+
+      for (const fullKey of keys) {
+        const value = await withRetry(() => this.client.get(fullKey));
+        if (value) {
+          try {
+            const keyPart = ensureString(
+              fullKey.replace(`u:${userName}:fav:`, '')
+            );
+            result[keyPart] = (
+              typeof value === 'string' ? JSON.parse(value) : value
+            ) as Favorite;
+          } catch (e) {
+            console.error(`[DB] Failed to parse Favorite for key ${fullKey}:`, e);
+          }
         }
       }
-    }
+    } while (cursor !== 0);
+
     return result;
   }
 
@@ -217,37 +227,24 @@ export class UpstashRedisStorage implements IStorage {
 
   // 删除用户及其所有数据
   async deleteUser(userName: string): Promise<void> {
+    const keysToDelete: string[] = [];
     // 删除用户密码
-    await withRetry(() => this.client.del(this.userPwdKey(userName)));
-
+    keysToDelete.push(this.userPwdKey(userName));
     // 删除搜索历史
-    await withRetry(() => this.client.del(this.shKey(userName)));
+    keysToDelete.push(this.shKey(userName));
 
-    // 删除播放记录
-    const playRecordPattern = `u:${userName}:pr:*`;
-    const playRecordKeys = await withRetry(() =>
-      this.client.keys(playRecordPattern)
-    );
-    if (playRecordKeys.length > 0) {
-      await withRetry(() => this.client.del(...playRecordKeys));
+    const patterns = [`u:${userName}:pr:*`, `u:${userName}:fav:*`, `u:${userName}:skip:*`];
+    for (const pattern of patterns) {
+      let cursor = 0;
+      do {
+        const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
+        cursor = nextCursor;
+        keysToDelete.push(...keys);
+      } while (cursor !== 0);
     }
 
-    // 删除收藏夹
-    const favoritePattern = `u:${userName}:fav:*`;
-    const favoriteKeys = await withRetry(() =>
-      this.client.keys(favoritePattern)
-    );
-    if (favoriteKeys.length > 0) {
-      await withRetry(() => this.client.del(...favoriteKeys));
-    }
-
-    // 删除跳过片头片尾配置
-    const skipConfigPattern = `u:${userName}:skip:*`;
-    const skipConfigKeys = await withRetry(() =>
-      this.client.keys(skipConfigPattern)
-    );
-    if (skipConfigKeys.length > 0) {
-      await withRetry(() => this.client.del(...skipConfigKeys));
+    if (keysToDelete.length > 0) {
+      await withRetry(() => this.client.del(...keysToDelete));
     }
   }
 
@@ -285,13 +282,20 @@ export class UpstashRedisStorage implements IStorage {
 
   // ---------- 获取全部用户 ----------
   async getAllUsers(): Promise<string[]> {
-    const keys = await withRetry(() => this.client.keys('u:*:pwd'));
-    return keys
-      .map((k) => {
-        const match = k.match(/^u:(.+?):pwd$/);
-        return match ? ensureString(match[1]) : undefined;
-      })
-      .filter((u): u is string => typeof u === 'string');
+    const users: string[] = [];
+    let cursor = 0;
+    do {
+      const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: 'u:*:pwd', count: 100 }));
+      cursor = nextCursor;
+      const matchedUsers = keys
+        .map((k) => {
+          const match = k.match(/^u:(.+?):pwd$/);
+          return match ? ensureString(match[1]) : undefined;
+        })
+        .filter((u): u is string => typeof u === 'string');
+      users.push(...matchedUsers);
+    } while (cursor !== 0);
+    return users;
   }
 
   // ---------- 管理员配置 ----------
@@ -364,34 +368,35 @@ export class UpstashRedisStorage implements IStorage {
     userName: string
   ): Promise<{ [key: string]: SkipConfig }> {
     const pattern = `u:${userName}:skip:*`;
-    const keys = await withRetry(() => this.client.keys(pattern));
-
-    if (keys.length === 0) {
-      return {};
-    }
-
     const configs: { [key: string]: SkipConfig } = {};
+    let cursor = 0;
+    
+    do {
+      const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
+      cursor = nextCursor;
 
-    // 批量获取所有配置
-    const values = await withRetry(() => this.client.mget(keys));
-
-    keys.forEach((key, index) => {
-      const value = values[index];
-      if (value) {
-        try {
-          // 从key中提取source+id
-          const match = key.match(/^u:.+?:skip:(.+)$/);
-          if (match) {
-            const sourceAndId = match[1];
-            configs[sourceAndId] = (
-              typeof value === 'string' ? JSON.parse(value) : value
-            ) as SkipConfig;
+      // 批量获取所有配置
+      if (keys.length > 0) {
+        const values = await withRetry(() => this.client.mget(...keys));
+        keys.forEach((key, index) => {
+          const value = values[index];
+          if (value) {
+            try {
+              // 从key中提取source+id
+              const match = key.match(/^u:.+?:skip:(.+)$/);
+              if (match) {
+                const sourceAndId = match[1];
+                configs[sourceAndId] = (
+                  typeof value === 'string' ? JSON.parse(value) : value
+                ) as SkipConfig;
+              }
+            } catch (e) {
+              console.error(`[DB] Failed to parse SkipConfig for key ${key}:`, e);
+            }
           }
-        } catch (e) {
-          console.error(`[DB] Failed to parse SkipConfig for key ${key}:`, e);
-        }
+        });
       }
-    });
+    } while (cursor !== 0);
 
     return configs;
   }
@@ -467,11 +472,17 @@ export class UpstashRedisStorage implements IStorage {
     // Upstash的TTL机制会自动清理过期数据，这里主要用于手动清理
     // 可以根据需要实现特定前缀的缓存清理
     const pattern = prefix ? `cache:${prefix}*` : 'cache:*';
-    const keys = await withRetry(() => this.client.keys(pattern));
+    const keysToDelete: string[] = [];
+    let cursor = 0;
+    do {
+      const [nextCursor, keys] = await withRetry(() => this.client.scan(cursor, { match: pattern, count: 100 }));
+      cursor = nextCursor;
+      keysToDelete.push(...keys);
+    } while (cursor !== 0);
 
-    if (keys.length > 0) {
-      await withRetry(() => this.client.del(...keys));
-      console.log(`Cleared ${keys.length} cache entries with pattern: ${pattern}`);
+    if (keysToDelete.length > 0) {
+      await withRetry(() => this.client.del(...keysToDelete));
+      console.log(`Cleared ${keysToDelete.length} cache entries with pattern: ${pattern}`);
     }
   }
 
