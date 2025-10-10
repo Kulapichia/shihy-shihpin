@@ -571,33 +571,32 @@ export async function getDetailFromApi(
       throw new Error('获取到的详情内容无效');
     }
 
-  const videoDetail = data.list[0];
-  // [REFACTORED] 调用辅助函数来解析播放链接
-  let { episodes, titles } = parsePlayUrl(videoDetail.vod_play_url);
+    const videoDetail = data.list[0];
+    // [REFACTORED] 调用辅助函数来解析播放链接
+    let { episodes, titles } = parsePlayUrl(videoDetail.vod_play_url);
 
-  // 如果播放源为空，则尝试从内容中解析 m3u8
-  if (episodes.length === 0 && videoDetail.vod_content) {
-    const matches = videoDetail.vod_content.match(M3U8_PATTERN) || [];
-    episodes = matches.map((link: string) => link.replace(/^\$/, ''));
-  }
+    // 如果播放源为空，则尝试从内容中解析 m3u8
+    if (episodes.length === 0 && videoDetail.vod_content) {
+      const matches = videoDetail.vod_content.match(M3U8_PATTERN) || [];
+      episodes = matches.map((link: string) => link.replace(/^\$/, ''));
+    }
 
-  return {
-    id: id.toString(),
-    title: videoDetail.vod_name,
-    poster: videoDetail.vod_pic,
-    episodes,
-    episodes_titles: titles,
-    source: apiSite.key,
-    source_name: apiSite.name,
-    class: videoDetail.vod_class,
-    year: videoDetail.vod_year
-      ? videoDetail.vod_year.match(/\d{4}/)?.[0] || ''
-      : 'unknown',
-    desc: cleanHtmlTags(videoDetail.vod_content),
-    type_name: videoDetail.type_name,
-    douban_id: videoDetail.vod_douban_id,
-  };
-}
+    return {
+      id: id.toString(),
+      title: videoDetail.vod_name,
+      poster: videoDetail.vod_pic,
+      episodes,
+      episodes_titles: titles,
+      source: apiSite.key,
+      source_name: apiSite.name,
+      class: videoDetail.vod_class,
+      year: videoDetail.vod_year
+        ? videoDetail.vod_year.match(/\d{4}/)?.[0] || ''
+        : 'unknown',
+      desc: cleanHtmlTags(videoDetail.vod_content),
+      type_name: videoDetail.type_name,
+      douban_id: videoDetail.vod_douban_id,
+    };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
