@@ -584,12 +584,12 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     // [关键修复] 增加更详细的错误日志，并确保在任何情况下都返回一个有效的JSON响应
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
     
     console.error('[Search API] CRITICAL: Unhandled exception in search process. This is the final catch block.', {
-      error: errorMessage,
-      stack: errorStack,
+      // 直接记录原始错误对象以获得最全信息
+      error: error,
       query,
       timestamp: new Date().toISOString()
     });
