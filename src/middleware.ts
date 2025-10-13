@@ -5,58 +5,64 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  try {
+    const { pathname } = request.nextUrl;
 
-  // 跳过不需要认证的路径
-  if (shouldSkipAuth(pathname)) {
-    return NextResponse.next();
-  }
-
-  const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
-
-  if (!process.env.PASSWORD) {
-    // 如果没有设置密码，重定向到警告页面
-    const warningUrl = new URL('/warning', request.url);
-    return NextResponse.redirect(warningUrl);
-  }
-
-  // 从cookie获取认证信息
-  const authInfo = getAuthInfoFromCookie(request);
-
-  if (!authInfo) {
-    return handleAuthFailure(request, pathname);
-  }
-
-  // localstorage模式：在middleware中完成验证
-  if (storageType === 'localstorage') {
-    if (!authInfo.password || authInfo.password !== process.env.PASSWORD) {
-      return handleAuthFailure(request, pathname);
-    }
-    return NextResponse.next();
-  }
-
-  // 其他模式：只验证签名
-  // 检查是否有用户名（非localStorage模式下密码不存储在cookie中）
-  if (!authInfo.username || !authInfo.signature) {
-    return handleAuthFailure(request, pathname);
-  }
-
-  // 验证签名（如果存在）
-  if (authInfo.signature) {
-    const isValidSignature = await verifySignature(
-      authInfo.username,
-      authInfo.signature,
-      process.env.PASSWORD || ''
-    );
-
-    // 签名验证通过即可
-    if (isValidSignature) {
+    // 跳过不需要认证的路径
+    if (shouldSkipAuth(pathname)) {
       return NextResponse.next();
     }
-  }
 
-  // 签名验证失败或不存在签名
-  return handleAuthFailure(request, pathname);
+    const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
+
+    if (!process.env.PASSWORD) {
+      // 如果没有设置密码，重定向到警告页面
+      const warningUrl = new URL('/warning', request.url);
+      return NextResponse.redirect(warningUrl);
+    }
+
+    // 从cookie获取认证信息
+    const authInfo = getAuthInfoFromCookie(request);
+
+    if (!authInfo) {
+      return handleAuthFailure(request, pathname);
+    }
+
+    // localstorage模式：在middleware中完成验证
+    if (storageType === 'localstorage') {
+      if (!authInfo.password || authInfo.password !== process.env.PASSWORD) {
+        return handleAuthFailure(request, pathname);
+      }
+      return NextResponse.next();
+    }
+
+    // 其他模式：只验证签名
+    // 检查是否有用户名（非localStorage模式下密码不存储在cookie中）
+    if (!authInfo.username || !authInfo.signature) {
+      return handleAuthFailure(request, pathname);
+    }
+
+    // 验证签名（如果存在）
+    if (authInfo.signature) {
+      const isValidSignature = await verifySignature(
+        authInfo.username,
+        authInfo.signature,
+        process.env.PASSWORD || ''
+      );
+
+      // 签名验证通过即可
+      if (isValidSignature) {
+        return NextResponse.next();
+      }
+    }
+
+    // 签名验证失败或不存在签名
+    return handleAuthFailure(request, pathname);
+  } catch (error) {
+    console.error('CRITICAL: 中间件执行失败:', error);
+    // 发生未知错误时，返回一个标准的 500 错误响应
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
 }
 
 // 验证签名
