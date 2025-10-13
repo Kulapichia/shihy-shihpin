@@ -422,13 +422,18 @@ export async function GET(request: NextRequest) {
               allResults.push(...filteredResults);
             }
           } catch (error) {
-            console.error(`[WS Search API] Search failed for ${site.name}:`, { error: error instanceof Error ? error.message : error, siteKey: site.key });
+            // [关键修复] 增强错误处理，确保任何类型的错误都能被正确记录和报告
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[WS Search API] Search failed for ${site.name}:`, { 
+              error: error, // 记录原始错误对象以供调试
+              siteKey: site.key 
+            });
             if (!streamClosed) {
               const errorEvent = `data: ${JSON.stringify({
                 type: 'source_error',
                 source: site.key,
                 sourceName: site.name,
-                error: error instanceof Error ? error.message : '搜索失败',
+                error: errorMessage, // 向客户端发送更具体的错误信息
                 timestamp: Date.now(),
               })}\n\n`;
               safeEnqueue(encoder.encode(errorEvent));
