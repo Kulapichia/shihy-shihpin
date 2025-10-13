@@ -13,7 +13,7 @@ import { SearchResult } from '@/lib/types';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  // [关键修复] 添加最外层的 try...catch 块，捕获所有未处理的异常
+  // [关键修复] 最外层的 try...catch 块，捕获所有未处理的异常
   try {
     console.log('[Search API] Request received:', {
       method: request.method,
@@ -232,8 +232,8 @@ export async function GET(request: NextRequest) {
         return Math.max(0, Math.round(score));
     };
   
-    // 通用化审核函数
-    async function moderateImage(imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> {
+    // [构建修复] 将函数声明改为函数表达式以解决 TS1252 错误
+    const moderateImage = async (imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> => {
       console.log(`[AI Filter DEBUG] ==> moderateImage CALLED for URL: ${imageUrl}`);
       const filterConfig = config.SiteConfig.IntelligentFilter;
   
@@ -362,10 +362,11 @@ export async function GET(request: NextRequest) {
         default:
           return { decision: 'allow', reason: 'Unknown provider' };
       }
-    }
+    };
   
     console.log('[Search API] Starting search with sites:', apiSites.map(site => ({ key: site.key, name: site.name, status: site.lastCheck?.status })));
   
+    // 这是一个内部的 try...catch, 用于处理搜索过程中的预期错误
     try {
       let flattenedResults: any[] = [];
       if (deep) {
@@ -585,18 +586,16 @@ export async function GET(request: NextRequest) {
         }
       );
     } catch (error) {
-      // [关键修复] 增加更详细的错误日志，并确保在任何情况下都返回一个有效的JSON响应
+      // 这是内部的 catch 块, 用于处理搜索过程中的预期错误
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
       
-      console.error('[Search API] CRITICAL: Unhandled exception in search process. This is the final catch block.', {
-        // 直接记录原始错误对象以获得最全信息
+      console.error('[Search API] CRITICAL: Unhandled exception in search process. This is the inner catch block.', {
         error: error,
         query,
         timestamp: new Date().toISOString()
       });
   
-      // 始终返回一个标准的JSON错误响应，而不是让服务器崩溃
       return NextResponse.json(
         { 
           error: `搜索过程中发生严重服务器错误: ${errorMessage}`,
@@ -606,7 +605,7 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (error) {
-    // [关键修复] 最外层捕获块
+    // [运行时修复] 这是最外层的 catch 块，用于防止服务崩溃 (它一直都在！)
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[Search API] CRITICAL: 未处理的顶层异常:', {
       error: error,
